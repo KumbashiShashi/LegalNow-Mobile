@@ -237,3 +237,47 @@ export interface Invoice {
   createdAt: string;
 }
 
+export interface ServiceProviderLocation {
+  id: string;
+  serviceProviderProfileId?: string;
+  state: string;
+  district?: string;
+  city?: string;
+  postalCode?: string;
+  jurisdiction?: string;
+  isActive?: boolean;
+  createdAt?: string;
+}
+
+export interface ServiceProviderDocument {
+  id: string;
+  serviceCatalogueItemId?: string;
+  documentType: string;
+  reviewStatus: 'pending' | 'approved' | 'rejected';
+  reviewNote?: string;
+  originalFileName?: string;
+  uploadedAt: string;
+}
+
+export interface ServiceProviderSubscription {
+  tier: string;
+  status: string;
+  isSubscribed: boolean;
+  expiresAt: string | null;
+  monthlyQuota: number;
+  leadsUsed: number;
+  rolloverCredits: number;
+  availableCredits: number;
+  disputedLeads: number;
+  env?: string;
+  packages: {
+    key: string;
+    name: string;
+    fee: number;
+    leads: number;
+    extraLeadFee: number;
+    categories: string;
+  }[];
+}
+
+

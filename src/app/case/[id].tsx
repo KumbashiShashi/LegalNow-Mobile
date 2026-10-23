@@ -11,6 +11,7 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { CaseChat } from '../../components/shared/CaseChat';
 import { showAlert } from '../../utils/alert';
+import { mediaUrl } from '../../utils/media';
 
 const fetchCaseDetails = async (id: string) => {
   const { data } = await apiClient.get(`/problems/${id}`);
@@ -111,7 +112,7 @@ export default function CaseDetailScreen() {
                   <TouchableOpacity
                     key={index}
                     style={styles.attachmentChip}
-                    onPress={() => Linking.openURL(url.startsWith('http') ? url : `http://localhost:5000${url}`)}
+                    onPress={() => Linking.openURL(mediaUrl(url))}
                   >
                     <Ionicons name="document-text-outline" size={16} color={theme.colors.primary} />
                     <Text style={styles.attachmentText}>Attachment {index + 1}</Text>
