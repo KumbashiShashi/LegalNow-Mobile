@@ -14,7 +14,12 @@ import { showAlert } from '../../../utils/alert';
 
 const fetchLeads = async () => {
   const { data } = await apiClient.get('/service-marketplace/leads');
-  return Array.isArray(data) ? data : [];
+  if (!Array.isArray(data)) return [];
+  return data.map((item: any) => ({
+    ...item,
+    id: item.leadId || item.id,
+    leadId: item.leadId || item.id,
+  }));
 };
 
 const fetchSubscription = async () => {
@@ -156,9 +161,10 @@ export default function ProviderDashboardScreen() {
       ) : (
         <FlatList
           data={filteredLeads}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => String(item.leadId || item.id || `lead-${index}`)}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
+            const currentLeadId = item.leadId || item.id || `lead-${index}`;
             const isPending = item.status === 'matched' || item.status === 'pending';
             const isAccepted = item.status === 'accepted' || item.status === 'in_progress';
             const isCompleted = item.status === 'completed';
@@ -194,15 +200,15 @@ export default function ProviderDashboardScreen() {
                   <View style={styles.actionRow}>
                     <Button
                       title="Accept Lead"
-                      onPress={() => respondMutation.mutate({ leadId: item.id, response: 'accepted' })}
-                      isLoading={respondMutation.isPending && respondingId === item.id}
+                      onPress={() => respondMutation.mutate({ leadId: currentLeadId, response: 'accepted' })}
+                      isLoading={respondMutation.isPending && respondingId === currentLeadId}
                       style={{ flex: 1 }}
                     />
                     <Button
                       title="Reject"
                       variant="danger"
-                      onPress={() => respondMutation.mutate({ leadId: item.id, response: 'rejected' })}
-                      isLoading={respondMutation.isPending && respondingId === item.id}
+                      onPress={() => respondMutation.mutate({ leadId: currentLeadId, response: 'rejected' })}
+                      isLoading={respondMutation.isPending && respondingId === currentLeadId}
                       style={{ flex: 1 }}
                     />
                   </View>
@@ -243,7 +249,7 @@ export default function ProviderDashboardScreen() {
                         <Button
                           title="Mark In-Progress"
                           variant="secondary"
-                          onPress={() => statusMutation.mutate({ leadId: item.id, status: 'in_progress' })}
+                          onPress={() => statusMutation.mutate({ leadId: currentLeadId, status: 'in_progress' })}
                           isLoading={statusMutation.isPending}
                           style={{ flex: 1 }}
                         />
@@ -251,7 +257,7 @@ export default function ProviderDashboardScreen() {
                       <Button
                         title="Mark Completed"
                         variant="primary"
-                        onPress={() => statusMutation.mutate({ leadId: item.id, status: 'completed' })}
+                        onPress={() => statusMutation.mutate({ leadId: currentLeadId, status: 'completed' })}
                         isLoading={statusMutation.isPending}
                         style={{ flex: 1 }}
                       />
@@ -289,7 +295,7 @@ export default function ProviderDashboardScreen() {
           <View style={styles.modalContent}>
             {activeChatLead && (
               <ServiceConversation
-                leadId={activeChatLead.id}
+                leadId={activeChatLead.leadId || activeChatLead.id}
                 onClose={() => setActiveChatLead(null)}
               />
             )}
@@ -308,7 +314,7 @@ export default function ProviderDashboardScreen() {
           <View style={styles.modalContent}>
             {activeMeetingLead && (
               <ServiceMeetingScheduler
-                leadId={activeMeetingLead.id}
+                leadId={activeMeetingLead.leadId || activeMeetingLead.id}
                 onSuccess={() => setActiveMeetingLead(null)}
                 onClose={() => setActiveMeetingLead(null)}
               />
@@ -369,7 +375,7 @@ export default function ProviderDashboardScreen() {
               <Button
                 title="Submit Dispute"
                 variant="danger"
-                onPress={() => disputeMutation.mutate({ leadId: disputeLead.id, reason: disputeReason })}
+                onPress={() => disputeMutation.mutate({ leadId: disputeLead.leadId || disputeLead.id, reason: disputeReason })}
                 isLoading={disputeMutation.isPending}
                 style={{ flex: 1 }}
               />
