@@ -68,8 +68,15 @@ export default function NotificationsScreen() {
               onPress={() => {
                 if (!item.isRead) markReadMutation.mutate(item.id);
                 if (item.link) {
-                  // Standard route mapping from web links
-                  router.push(item.link);
+                  let path = item.link;
+                  if (path.startsWith('/cases/')) {
+                    path = path.replace('/cases/', '/case/');
+                  }
+                  try {
+                    router.push(path as any);
+                  } catch {
+                    // Ignore unrecognized route
+                  }
                 }
               }}
             >

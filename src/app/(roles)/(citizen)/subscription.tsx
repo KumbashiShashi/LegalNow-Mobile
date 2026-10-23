@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../../api/axiosClient';
 import { theme } from '../../../styles/theme';
@@ -170,23 +170,29 @@ export default function SubscriptionScreen() {
         </Card>
       ) : (
         invoices.map((inv: any) => (
-          <Card key={inv.id} style={styles.invoiceCard}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text style={{ fontWeight: '700', fontSize: 14 }}>{inv.invoiceNumber || 'Tax Invoice'}</Text>
-              <Text style={{ fontWeight: '700', color: theme.colors.primary }}>
-                ₹{inv.amount?.toLocaleString('en-IN')}
+          <TouchableOpacity
+            key={inv.id}
+            activeOpacity={0.7}
+            onPress={() => router.push(`/invoices/${inv.id}` as any)}
+          >
+            <Card style={styles.invoiceCard}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={{ fontWeight: '700', fontSize: 14 }}>{inv.invoiceNumber || 'Tax Invoice'}</Text>
+                <Text style={{ fontWeight: '700', color: theme.colors.primary }}>
+                  ₹{inv.amount?.toLocaleString('en-IN')}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 12, color: theme.colors.muted }}>
+                {inv.type || 'Payment'} • {new Date(inv.createdAt).toLocaleDateString()}
               </Text>
-            </View>
-            <Text style={{ fontSize: 12, color: theme.colors.muted }}>
-              {inv.type || 'Payment'} • {new Date(inv.createdAt).toLocaleDateString()}
-            </Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-              <Badge status={inv.status === 'paid' ? 'verified' : 'pending'} label={inv.status} />
-              <Text style={{ fontSize: 12, color: theme.colors.primary, fontWeight: '600' }}>
-                View Receipt →
-              </Text>
-            </View>
-          </Card>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                <Badge status={inv.status === 'paid' ? 'verified' : 'pending'} label={inv.status} />
+                <Text style={{ fontSize: 12, color: theme.colors.primary, fontWeight: '600' }}>
+                  View Receipt →
+                </Text>
+              </View>
+            </Card>
+          </TouchableOpacity>
         ))
       )}
     </ScrollView>

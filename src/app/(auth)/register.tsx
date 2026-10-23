@@ -7,6 +7,8 @@ import { theme } from '../../styles/theme';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { showAlert } from '../../utils/alert';
+import { TermsModal } from '../../components/shared/TermsModal';
+import { Ionicons } from '@expo/vector-icons';
 
 const fetchCategories = async () => {
   const { data } = await apiClient.get('/marketplace/categories');
@@ -67,6 +69,10 @@ export default function RegisterScreen() {
 
   // Citizen specific
   const [category, setCategory] = useState('');
+
+  // Terms & Conditions
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
   const { data: providerServices = [] } = useQuery({ queryKey: ['services'], queryFn: fetchServices });
@@ -134,6 +140,11 @@ export default function RegisterScreen() {
 
     if (role === 'service_provider' && serviceIds.length === 0) {
       showAlert('Validation Error', 'Service Providers must select at least 1 catalogue service.');
+      return;
+    }
+
+    if (!termsAccepted) {
+      showAlert('Terms Required', 'Please accept the Terms & Conditions to proceed with registration.');
       return;
     }
 
@@ -444,7 +455,29 @@ export default function RegisterScreen() {
                 </View>
               )}
 
-              <Text style={styles.hintText}>{"By submitting, you agree to LegalNow's Terms of Service. Verification data is checked securely."}</Text>
+              <TouchableOpacity
+                style={styles.termsRow}
+                onPress={() => setTermsAccepted(!termsAccepted)}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={termsAccepted ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={termsAccepted ? theme.colors.primary : theme.colors.muted}
+                />
+                <Text style={styles.termsText}>
+                  I have read and agree to the{' '}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setShowTermsModal(true);
+                    }}
+                  >
+                    Terms &amp; Conditions
+                  </Text>
+                </Text>
+              </TouchableOpacity>
 
               <View style={styles.rowActions}>
                 <Button title="Back" variant="secondary" onPress={() => setStep('details')} style={{ flex: 1 }} />
@@ -466,6 +499,11 @@ export default function RegisterScreen() {
           </TouchableOpacity>
         </View>
 
+        <TermsModal
+          visible={showTermsModal}
+          onClose={() => setShowTermsModal(false)}
+          onAccept={() => setTermsAccepted(true)}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -499,6 +537,9 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 12, color: theme.colors.text },
   tagTextSelected: { color: theme.colors.primary, fontWeight: 'bold' },
   hintText: { ...theme.typography.small, color: theme.colors.muted, marginTop: 8, marginBottom: 12 },
+  termsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, marginBottom: 16 },
+  termsText: { ...theme.typography.body, fontSize: 13, color: theme.colors.text, flex: 1 },
+  termsLink: { color: theme.colors.primary, fontWeight: '700', textDecorationLine: 'underline' },
   loginLinkContainer: { marginTop: theme.spacing.xl, alignItems: 'center' },
   loginHint: { ...theme.typography.body, color: theme.colors.muted },
   loginLink: { ...theme.typography.body, color: theme.colors.primary, fontWeight: 'bold', marginTop: 4 },
