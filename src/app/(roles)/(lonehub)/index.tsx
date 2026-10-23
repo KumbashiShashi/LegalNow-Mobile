@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,10 +13,17 @@ const fetchHubProfile = async () => {
   return data;
 };
 
+const fetchHubPayouts = async () => {
+  const { data } = await apiClient.get('/hubs/me/payouts');
+  return data;
+};
+
 export default function LOneHubDashboardScreen() {
   const { logout } = useAuthStore();
   const queryClient = useQueryClient();
   const { data: hub, isLoading } = useQuery({ queryKey: ['hub-profile'], queryFn: fetchHubProfile, retry: false });
+  const { data: payouts } = useQuery({ queryKey: ['hub-payouts'], queryFn: fetchHubPayouts, retry: false });
+  const [showPayoutDetails, setShowPayoutDetails] = useState(false);
 
   const devSubscribeMutation = useMutation({
     mutationFn: async () => {
@@ -77,6 +84,57 @@ export default function LOneHubDashboardScreen() {
         </View>
       </View>
 
+      {/* Payout Details Card */}
+      <View style={[styles.statsCard, { flexDirection: 'column', alignItems: 'flex-start', gap: 10 }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <View>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.secondary }}>Payouts & Earnings</Text>
+            <Text style={{ fontSize: 12, color: theme.colors.muted }}>Earned from meetings hosted at your Hub</Text>
+          </View>
+          <TouchableOpacity onPress={() => setShowPayoutDetails(!showPayoutDetails)} style={{ padding: 4 }}>
+            <Ionicons name={showPayoutDetails ? 'chevron-up-circle' : 'chevron-down-circle'} size={24} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {showPayoutDetails && (
+          <View style={{ width: '100%', marginTop: 8 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.primary, marginBottom: 6 }}>
+              Meeting Earnings Accrued ({payouts?.accrued?.length || 0})
+            </Text>
+            {(!payouts?.accrued || payouts.accrued.length === 0) ? (
+              <Text style={{ fontSize: 12, color: theme.colors.muted, marginBottom: 12 }}>No completed meetings yet.</Text>
+            ) : (
+              payouts.accrued.map((a: any) => (
+                <View key={a.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: '#E0E0E0' }}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '500' }}>{a.subject || 'Meeting hosted'}</Text>
+                    <Text style={{ fontSize: 11, color: theme.colors.muted }}>{new Date(a.completedAt).toLocaleDateString()}</Text>
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#137333' }}>+₹{a.amount?.toLocaleString('en-IN')}</Text>
+                </View>
+              ))
+            )}
+
+            <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.primary, marginTop: 14, marginBottom: 6 }}>
+              Disbursements from LegalNow ({payouts?.paid?.length || 0})
+            </Text>
+            {(!payouts?.paid || payouts.paid.length === 0) ? (
+              <Text style={{ fontSize: 12, color: theme.colors.muted }}>No payouts disbursed yet.</Text>
+            ) : (
+              payouts.paid.map((p: any) => (
+                <View key={p.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: '#E0E0E0' }}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '500' }}>{p.method || 'Bank Transfer'}{p.reference ? ` (${p.reference})` : ''}</Text>
+                    <Text style={{ fontSize: 11, color: theme.colors.muted }}>{new Date(p.paidAt).toLocaleDateString()}</Text>
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.primary }}>₹{p.amount?.toLocaleString('en-IN')}</Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+      </View>
+
       {/* Subscription Card */}
       <View style={[styles.statsCard, { flexDirection: 'column', alignItems: 'flex-start', gap: 8 }]}>
         <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.secondary }}>Hub Subscription</Text>
@@ -98,6 +156,10 @@ export default function LOneHubDashboardScreen() {
 
       {/* Quick Actions */}
       <View style={styles.actionsGrid}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(roles)/(lonehub)/meetings')}>
+          <Ionicons name="calendar-outline" size={24} color="#0066CC" />
+          <Text style={styles.actionText}>Hub Meetings</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(roles)/(lonehub)/profile')}>
           <Ionicons name="settings-outline" size={24} color="#0066CC" />
           <Text style={styles.actionText}>Hub Settings</Text>

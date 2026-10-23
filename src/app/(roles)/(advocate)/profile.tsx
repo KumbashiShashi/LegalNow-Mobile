@@ -9,6 +9,9 @@ import { Card } from '../../../components/Card';
 import { Badge } from '../../../components/Badge';
 import { showAlert } from '../../../utils/alert';
 import { ChangePasswordModal } from '../../../components/shared/ChangePasswordModal';
+import { SpecializationPicker } from '../../../components/shared/SpecializationPicker';
+import { LanguageInput } from '../../../components/shared/LanguageInput';
+import { PhotoPicker } from '../../../components/shared/PhotoPicker';
 
 
 const fetchProfile = async () => {
@@ -28,7 +31,6 @@ export default function AdvocateProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
 
   const [subCategoryInput, setSubCategoryInput] = useState('');
-  const [languageInput, setLanguageInput] = useState('');
 
   const [form, setForm] = useState({
     categories: [] as string[],
@@ -84,17 +86,6 @@ export default function AdvocateProfileScreen() {
     });
   };
 
-  const toggleCategory = (cat: string) => {
-    setForm(prev => {
-      const exists = prev.categories.includes(cat);
-      if (exists) return { ...prev, categories: prev.categories.filter(c => c !== cat) };
-      if (prev.categories.length >= 3) {
-        showAlert('Limit reached', 'You can only select up to 3 specializations.');
-        return prev;
-      }
-      return { ...prev, categories: [...prev.categories, cat] };
-    });
-  };
 
   const addSubCategory = () => {
     const val = subCategoryInput.trim();
@@ -109,18 +100,6 @@ export default function AdvocateProfileScreen() {
     setForm(prev => ({ ...prev, subCategories: prev.subCategories.filter(s => s !== val) }));
   };
 
-  const addLanguage = () => {
-    const val = languageInput.trim();
-    if (!val) return;
-    if (!form.languages.includes(val)) {
-      setForm(prev => ({ ...prev, languages: [...prev.languages, val] }));
-    }
-    setLanguageInput('');
-  };
-
-  const removeLanguage = (val: string) => {
-    setForm(prev => ({ ...prev, languages: prev.languages.filter(l => l !== val) }));
-  };
 
   if (loadingProfile) {
     return (
@@ -139,6 +118,19 @@ export default function AdvocateProfileScreen() {
       </View>
 
       <Card>
+        <PhotoPicker
+          name={profile?.name || user?.name || 'Advocate'}
+          photoUrl={profile?.photoUrl || user?.photoUrl}
+          onPhotoUpdated={(updated) => {
+            queryClient.invalidateQueries({ queryKey: ['advocate-profile'] });
+            if (updated.photoUrl !== undefined) {
+              useAuthStore.getState().updateUser(updated);
+            }
+          }}
+          label="Profile Photo"
+          hint="Uploaded photo is visible on public directory and consultations"
+        />
+
         <View style={styles.cardHeader}>
           <View>
             <Text style={styles.cardTitle}>{profile?.name || 'Advocate Name'}</Text>
@@ -212,21 +204,12 @@ export default function AdvocateProfileScreen() {
               placeholder="Tell clients about your practice..."
             />
 
-            <Text style={styles.inputLabel}>Specializations (1 to 3)</Text>
-            <View style={styles.tagsContainer}>
-              {allCategories.map((cat: string) => {
-                const isSelected = form.categories.includes(cat);
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.tag, isSelected && styles.tagSelected]}
-                    onPress={() => toggleCategory(cat)}
-                  >
-                    <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>{cat}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <SpecializationPicker
+              value={form.categories}
+              onChange={(cats) => setForm(f => ({ ...f, categories: cats }))}
+              options={allCategories}
+              max={3}
+            />
 
             <Text style={styles.inputLabel}>Sub-categories (e.g., Notary, Corporate Tax)</Text>
             <View style={styles.inputRow}>
@@ -241,18 +224,10 @@ export default function AdvocateProfileScreen() {
               ))}
             </View>
 
-            <Text style={styles.inputLabel}>Spoken Languages</Text>
-            <View style={styles.inputRow}>
-              <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} value={languageInput} onChangeText={setLanguageInput} placeholder="e.g. English, Hindi" />
-              <Button title="Add" variant="secondary" onPress={addLanguage} style={{ marginLeft: 8 }} />
-            </View>
-            <View style={styles.chipWrap}>
-              {form.languages.map(l => (
-                <TouchableOpacity key={l} style={styles.chip} onPress={() => removeLanguage(l)}>
-                  <Text style={styles.chipText}>{l} ✕</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <LanguageInput
+              value={form.languages}
+              onChange={(langs) => setForm(f => ({ ...f, languages: langs }))}
+            />
 
             <View style={styles.actionRow}>
               <Button title="Save changes" onPress={handleSave} isLoading={updateMutation.isPending} style={{ flex: 1 }} />

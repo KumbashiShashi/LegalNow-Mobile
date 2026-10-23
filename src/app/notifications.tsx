@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../api/axiosClient';
 import { theme } from '../styles/theme';
 import { Card } from '../components/Card';
+import { useAuthStore } from '../store/useAuthStore';
 
 const fetchNotifications = async () => {
   const { data } = await apiClient.get('/marketplace/notifications');
@@ -69,9 +70,27 @@ export default function NotificationsScreen() {
                 if (!item.isRead) markReadMutation.mutate(item.id);
                 if (item.link) {
                   let path = item.link;
+                  const currentRole = useAuthStore.getState().role;
+
                   if (path.startsWith('/cases/')) {
                     path = path.replace('/cases/', '/case/');
+                  } else if (path === '/appointments') {
+                    if (currentRole === 'professional') path = '/(roles)/(advocate)/appointments';
+                    else if (currentRole === 'hub') path = '/(roles)/(lonehub)/meetings';
+                    else if (currentRole === 'service_provider') path = '/(roles)/(provider)/appointments';
+                    else path = '/(roles)/(citizen)/appointments';
+                  } else if (path === '/subscription') {
+                    path = '/(roles)/(citizen)/subscription';
+                  } else if (path === '/advocates') {
+                    path = '/(roles)/(citizen)/advocates';
+                  } else if (path.startsWith('/advocates/')) {
+                    path = path.replace('/advocates/', '/(roles)/(citizen)/advocates/');
+                  } else if (path === '/service-providers') {
+                    path = '/(roles)/(citizen)/service-providers';
+                  } else if (path === '/dashboard') {
+                    path = '/(roles)';
                   }
+
                   try {
                     router.push(path as any);
                   } catch {

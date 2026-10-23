@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, ActivityIndicator, Alert, TextInput, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, ActivityIndicator, Alert, TextInput, TouchableOpacity, Image } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { Card } from '../../../../components/Card';
 import { Badge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
 import { HubPicker } from '../../../../components/shared/HubPicker';
+import { mediaUrl } from '../../../../utils/media';
 
 const fetchAdvocateProfile = async (id: string) => {
   const { data } = await apiClient.get(`/marketplace/professionals/${id}`);
@@ -132,13 +133,23 @@ export default function AdvocateProfileScreen() {
       {/* Header Profile Card */}
       <Card style={styles.headerCard}>
         <View style={styles.headerTop}>
-          <View style={{ flex: 1 }}>
+          {profile.photoUrl ? (
+            <Image source={{ uri: mediaUrl(profile.photoUrl) }} style={styles.avatarImg} />
+          ) : (
+            <View style={styles.avatarWrap}>
+              <Text style={styles.avatarText}>{(profile.name || 'A').charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+
+          <View style={{ flex: 1, marginLeft: 14 }}>
             <Text style={styles.name}>{profile.name}</Text>
             <Text style={styles.location}>
               <Ionicons name="location-outline" size={14} color={theme.colors.muted} /> {profile.location || 'Chamber Available'}
             </Text>
+            <View style={{ marginTop: 4 }}>
+              <Badge status={profile.verificationStatus === 'verified' ? 'verified' : 'pending'} label={profile.verificationStatus === 'verified' ? 'Verified Advocate' : 'Pending Verification'} />
+            </View>
           </View>
-          <Badge status={profile.verificationStatus === 'verified' ? 'verified' : 'pending'} label={profile.verificationStatus === 'verified' ? 'Verified Advocate' : 'Pending Verification'} />
         </View>
 
         {profile.barCouncilEnrollmentNumber && (
@@ -326,7 +337,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   content: { padding: theme.spacing.md, paddingBottom: 40 },
   headerCard: { padding: theme.spacing.md, marginBottom: 16 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  avatarImg: { width: 56, height: 56, borderRadius: 28 },
+  avatarWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  avatarText: { fontSize: 22, fontWeight: 'bold', color: theme.colors.primary },
   name: { ...theme.typography.h2, marginBottom: 2 },
   location: { ...theme.typography.body, color: theme.colors.muted },
   barCouncilText: { fontSize: 12, color: theme.colors.secondary, fontWeight: '600', marginBottom: 8 },

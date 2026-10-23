@@ -167,6 +167,9 @@ export interface ServiceCatalogueItem {
   description?: string;
   isActive: boolean;
   estimatedDays?: number;
+  estimatedPriceMin?: number;
+  estimatedPriceMax?: number;
+  requiredSubscriptionTier?: string;
 }
 
 export interface ServiceLead {

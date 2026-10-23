@@ -8,6 +8,10 @@ import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { showAlert } from '../../utils/alert';
 import { TermsModal } from '../../components/shared/TermsModal';
+import { SpecializationPicker } from '../../components/shared/SpecializationPicker';
+import { LanguageInput } from '../../components/shared/LanguageInput';
+import { PhotoPicker } from '../../components/shared/PhotoPicker';
+import { INDIAN_STATES } from '../../utils/indianStates';
 import { Ionicons } from '@expo/vector-icons';
 
 const fetchCategories = async () => {
@@ -35,14 +39,15 @@ export default function RegisterScreen() {
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
   const [city, setCity] = useState('');
+  const [district, setDistrict] = useState('');
   const [state, setState] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [aadharNumber, setAadharNumber] = useState('');
+  const [photoData, setPhotoData] = useState<string | null>(null);
 
   // Advocate specific
   const [specializations, setSpecializations] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>([]);
-  const [languageInput, setLanguageInput] = useState('');
 
   // Hub specific
   const [shopName, setShopName] = useState('');
@@ -94,17 +99,6 @@ export default function RegisterScreen() {
     }
   });
 
-  const toggleSpecialization = (cat: string) => {
-    if (specializations.includes(cat)) {
-      setSpecializations(specializations.filter(c => c !== cat));
-    } else {
-      if (specializations.length >= 3) {
-        showAlert('Limit Reached', 'Select up to 3 specializations.');
-        return;
-      }
-      setSpecializations([...specializations, cat]);
-    }
-  };
 
   const toggleService = (id: string) => {
     if (serviceIds.includes(id)) {
@@ -157,10 +151,12 @@ export default function RegisterScreen() {
       addressLine1: addressLine1.trim(),
       addressLine2: addressLine2.trim(),
       city: city.trim(),
+      district: district.trim(),
       state: state.trim(),
       postalCode: postalCode.replace(/\D/g, ''),
       aadharNumber: aadharNumber.replace(/\D/g, ''),
       role,
+      ...(photoData ? { photoData } : {}),
       ...(role === 'professional' ? { categories: specializations, languages } : {}),
       ...(role === 'hub' ? {
         shopName: shopName.trim(),
@@ -263,6 +259,13 @@ export default function RegisterScreen() {
               <Text style={styles.inputLabel}>Password *</Text>
               <TextInput style={styles.input} value={password} onChangeText={setPassword} secureTextEntry placeholder="Create a password" />
 
+              <PhotoPicker
+                name={firstName || 'User'}
+                onChangeDataUrl={setPhotoData}
+                label="Profile Photo (Optional)"
+                hint="Your photo will be displayed on consultations and directory"
+              />
+
               <Button title="Next: Location Details →" onPress={() => setStep('location')} style={{ marginTop: theme.spacing.md }} />
             </View>
           )}
@@ -282,13 +285,27 @@ export default function RegisterScreen() {
                   <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="e.g. Bengaluru" />
                 </View>
                 <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={styles.inputLabel}>PIN Code *</Text>
-                  <TextInput style={styles.input} value={postalCode} onChangeText={setPostalCode} keyboardType="number-pad" maxLength={6} placeholder="6-digit PIN" />
+                  <Text style={styles.inputLabel}>District</Text>
+                  <TextInput style={styles.input} value={district} onChangeText={setDistrict} placeholder="District" />
                 </View>
               </View>
 
+              <Text style={styles.inputLabel}>PIN Code *</Text>
+              <TextInput style={styles.input} value={postalCode} onChangeText={setPostalCode} keyboardType="number-pad" maxLength={6} placeholder="6-digit PIN" />
+
               <Text style={styles.inputLabel}>State *</Text>
-              <TextInput style={styles.input} value={state} onChangeText={setState} placeholder="e.g. Karnataka" />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                {INDIAN_STATES.slice(0, 10).map((st) => (
+                  <TouchableOpacity
+                    key={st}
+                    style={[styles.stateChip, state === st && styles.stateChipSelected]}
+                    onPress={() => setState(st)}
+                  >
+                    <Text style={[styles.stateChipText, state === st && styles.stateChipTextSelected]}>{st}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TextInput style={styles.input} value={state} onChangeText={setState} placeholder="Select above or type State (e.g. Karnataka)" />
 
               <View style={styles.rowActions}>
                 <Button title="Back" variant="secondary" onPress={() => setStep('account')} style={{ flex: 1 }} />
@@ -303,27 +320,16 @@ export default function RegisterScreen() {
 
               {role === 'professional' && (
                 <View>
-                  <Text style={styles.inputLabel}>Select Specializations (1 to 3) *</Text>
-                  <View style={styles.tagsContainer}>
-                    {categories.map((cat: string) => {
-                      const isSel = specializations.includes(cat);
-                      return (
-                        <TouchableOpacity key={cat} style={[styles.tag, isSel && styles.tagSelected]} onPress={() => toggleSpecialization(cat)}>
-                          <Text style={[styles.tagText, isSel && styles.tagTextSelected]}>{cat}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <SpecializationPicker
+                    value={specializations}
+                    onChange={setSpecializations}
+                    options={categories}
+                    max={3}
+                  />
 
-                  <Text style={styles.inputLabel}>Languages Spoken (comma separated)</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={languageInput}
-                    onChangeText={(val) => {
-                      setLanguageInput(val);
-                      setLanguages(val.split(',').map(s => s.trim()).filter(Boolean));
-                    }}
-                    placeholder="e.g. English, Hindi, Telugu"
+                  <LanguageInput
+                    value={languages}
+                    onChange={setLanguages}
                   />
                 </View>
               )}
@@ -405,6 +411,11 @@ export default function RegisterScreen() {
 
                   <Text style={styles.inputLabel}>Working Hours</Text>
                   <TextInput style={styles.input} value={workingHours} onChangeText={setWorkingHours} placeholder="9:00 AM - 6:00 PM" />
+
+                  <LanguageInput
+                    value={languages}
+                    onChange={setLanguages}
+                  />
                 </View>
               )}
 
@@ -540,6 +551,10 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, marginBottom: 16 },
   termsText: { ...theme.typography.body, fontSize: 13, color: theme.colors.text, flex: 1 },
   termsLink: { color: theme.colors.primary, fontWeight: '700', textDecorationLine: 'underline' },
+  stateChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.borderRadius.pill, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, marginRight: 6 },
+  stateChipSelected: { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary },
+  stateChipText: { fontSize: 12, color: theme.colors.text },
+  stateChipTextSelected: { color: theme.colors.primary, fontWeight: '700' },
   loginLinkContainer: { marginTop: theme.spacing.xl, alignItems: 'center' },
   loginHint: { ...theme.typography.body, color: theme.colors.muted },
   loginLink: { ...theme.typography.body, color: theme.colors.primary, fontWeight: 'bold', marginTop: 4 },

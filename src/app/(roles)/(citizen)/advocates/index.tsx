@@ -7,6 +7,7 @@ import { apiClient } from '../../../../api/axiosClient';
 import { theme } from '../../../../styles/theme';
 import { Card } from '../../../../components/Card';
 import { Badge } from '../../../../components/Badge';
+import { mediaUrl } from '../../../../utils/media';
 
 const fetchCategories = async () => {
   const { data } = await apiClient.get('/marketplace/categories');
@@ -136,7 +137,7 @@ export default function AdvocateDirectoryScreen() {
             >
               <View style={styles.cardTop}>
                 {item.photoUrl ? (
-                  <Image source={{ uri: item.photoUrl }} style={styles.avatarImg} />
+                  <Image source={{ uri: mediaUrl(item.photoUrl) }} style={styles.avatarImg} />
                 ) : (
                   <View style={styles.avatarWrap}>
                     <Text style={styles.avatarText}>{(item.name || 'A').charAt(0).toUpperCase()}</Text>

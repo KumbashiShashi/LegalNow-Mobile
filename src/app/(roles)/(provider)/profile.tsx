@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../../utils/alert';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { ChangePasswordModal } from '../../../components/shared/ChangePasswordModal';
+import { PhotoPicker } from '../../../components/shared/PhotoPicker';
 
 const fetchProviderProfile = async () => {
   const { data } = await apiClient.get('/service-marketplace/me');
@@ -108,6 +109,19 @@ export default function ServiceProviderProfileScreen() {
       </View>
 
       <Card>
+        <PhotoPicker
+          name={profile?.businessName || user?.name || 'Service Provider'}
+          photoUrl={user?.photoUrl}
+          onPhotoUpdated={(updated) => {
+            queryClient.invalidateQueries({ queryKey: ['provider-profile'] });
+            if (updated.photoUrl !== undefined) {
+              useAuthStore.getState().updateUser(updated);
+            }
+          }}
+          label="Business Logo / Profile Photo"
+          hint="Visible to customers reviewing service proposals"
+        />
+
         {!isEditing ? (
           <View>
             <View style={styles.cardHeader}>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TextInput, ActivityIndicator, TouchableOpacity, Alert, Image } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TextInput, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { Badge } from '../../../components/Badge';
 import { ChangePasswordModal } from '../../../components/shared/ChangePasswordModal';
+import { PhotoPicker } from '../../../components/shared/PhotoPicker';
 
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuthStore();
@@ -82,44 +83,6 @@ export default function ProfileScreen() {
     },
   });
 
-  const pickAvatar = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Camera roll access is needed to select a profile photo.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]?.uri) {
-      const asset = result.assets[0];
-      const formData = new FormData();
-      const filename = asset.uri.split('/').pop() || 'photo.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
-      formData.append('file', {
-        uri: asset.uri,
-        name: filename,
-        type,
-      } as any);
-
-      try {
-        const { data } = await apiClient.post('/auth/photo', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
-        if (data.photoUrl) updateUser({ photoUrl: data.photoUrl });
-      } catch (e: any) {
-        Alert.alert('Photo Upload Error', e.response?.data?.message || 'Could not update photo.');
-      }
-    }
-  };
-
   const startEdit = () => {
     setForm({
       firstName: profile?.firstName || (profile?.name || '').split(' ')[0] || '',
@@ -153,29 +116,25 @@ export default function ProfileScreen() {
 
       {/* Avatar & Identity Card */}
       <Card style={styles.profileHeaderCard}>
-        <View style={styles.avatarRow}>
-          <TouchableOpacity onPress={pickAvatar} style={styles.avatarWrap}>
-            {currentProfile?.photoUrl ? (
-              <Image source={{ uri: currentProfile.photoUrl }} style={styles.avatarImg} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>{(currentProfile?.name || 'U').charAt(0).toUpperCase()}</Text>
-              </View>
-            )}
-            <View style={styles.cameraIconBadge}>
-              <Ionicons name="camera" size={14} color="#FFF" />
-            </View>
-          </TouchableOpacity>
+        <PhotoPicker
+          name={currentProfile?.name || 'Customer'}
+          photoUrl={currentProfile?.photoUrl}
+          onPhotoUpdated={(updated) => {
+            queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+            updateUser(updated);
+          }}
+          label="Profile Photo"
+          hint="Uploaded photo is visible across consultations and meetings"
+        />
 
-          <View style={{ flex: 1, marginLeft: 16 }}>
-            <Text style={styles.name}>{currentProfile?.name || 'Customer'}</Text>
-            <Text style={styles.email}>{currentProfile?.email}</Text>
-            <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Badge status={currentProfile?.role || 'citizen'} label={(currentProfile?.role || 'citizen').toUpperCase()} />
-              {currentProfile?.aadharVerified && (
-                <Badge status="verified" label="KYC Verified" />
-              )}
-            </View>
+        <View style={styles.identityDetails}>
+          <Text style={styles.name}>{currentProfile?.name || 'Customer'}</Text>
+          <Text style={styles.email}>{currentProfile?.email}</Text>
+          <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Badge status={currentProfile?.role || 'citizen'} label={(currentProfile?.role || 'citizen').toUpperCase()} />
+            {currentProfile?.aadharVerified && (
+              <Badge status="verified" label="KYC Verified" />
+            )}
           </View>
         </View>
       </Card>
@@ -352,6 +311,7 @@ const styles = StyleSheet.create({
   eyebrow: { ...theme.typography.eyebrow, marginBottom: 2 },
   title: { ...theme.typography.h1 },
   profileHeaderCard: { padding: 16, marginBottom: 12 },
+  identityDetails: { marginTop: 8, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: theme.colors.border },
   avatarRow: { flexDirection: 'row', alignItems: 'center' },
   avatarWrap: { position: 'relative' },
   avatarImg: { width: 68, height: 68, borderRadius: 34 },

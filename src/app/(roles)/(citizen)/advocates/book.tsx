@@ -457,3 +457,4 @@ const styles = StyleSheet.create({
   totalAmount: { fontSize: 16, fontWeight: 'bold', color: theme.colors.primary },
   feeNote: { fontSize: 11, color: theme.colors.muted, marginTop: 6, lineHeight: 15 },
 });
+

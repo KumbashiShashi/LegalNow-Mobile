@@ -108,6 +108,12 @@ export default function ServiceProviderDirectoryScreen() {
                   <Text style={styles.selectedServiceDesc}>
                     {selectedService.description || `Specialized service under ${selectedService.category}.`}
                   </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                    <Badge status="verified" label={`${selectedService.requiredSubscriptionTier || 'Basic'} Tier`} />
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.primary }}>
+                      Indicative Fee: ₹{(selectedService.estimatedPriceMin || 1500).toLocaleString('en-IN')} – ₹{(selectedService.estimatedPriceMax || 3500).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
                 </View>
               </View>
             )}
