@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../../utils/alert';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { ChangePasswordModal } from '../../../components/shared/ChangePasswordModal';
+import { PhotoPicker } from '../../../components/shared/PhotoPicker';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -23,6 +24,7 @@ export default function LoneHubProfileScreen() {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({
+    shopName: '',
     isAvailable: false,
     meetingAvailable: false,
     openDays: [] as string[],
@@ -56,6 +58,7 @@ export default function LoneHubProfileScreen() {
 
   const startEdit = () => {
     setForm({
+      shopName: hub?.shopName || '',
       isAvailable: hub?.isAvailable || false,
       meetingAvailable: hub?.meetingAvailable || false,
       openDays: hub?.openDays ? hub.openDays.split(',') : [],
@@ -107,6 +110,19 @@ export default function LoneHubProfileScreen() {
       </View>
 
       <Card>
+        <PhotoPicker
+          name={hub?.shopName || user?.name || 'LegalNow Hub'}
+          photoUrl={user?.photoUrl}
+          onPhotoUpdated={(updated) => {
+            queryClient.invalidateQueries({ queryKey: ['hub-profile'] });
+            if (updated.photoUrl !== undefined) {
+              useAuthStore.getState().updateUser(updated);
+            }
+          }}
+          label="Hub Logo / Storefront Photo"
+          hint="Visible to citizens and advocates browsing meeting hubs"
+        />
+
         {!isEditing ? (
           <View>
             <View style={styles.cardHeader}>
@@ -167,6 +183,9 @@ export default function LoneHubProfileScreen() {
                 <Text style={styles.toggleTitle}>Offer a meeting space</Text>
               </View>
             </TouchableOpacity>
+
+            <Text style={styles.inputLabel}>Shop Name *</Text>
+            <TextInput style={styles.input} value={form.shopName} onChangeText={(v) => setForm(f => ({...f, shopName: v}))} placeholder="LegalNow Hub Name" />
 
             <Text style={styles.inputLabel}>Operating Days</Text>
             <View style={styles.daysContainer}>

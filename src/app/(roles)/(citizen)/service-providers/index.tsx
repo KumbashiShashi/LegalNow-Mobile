@@ -156,7 +156,26 @@ export default function ServiceProviderDirectoryScreen() {
           </View>
         }
         renderItem={({ item }: { item: any }) => (
-          <Card style={styles.providerCard}>
+          <Card
+            style={styles.providerCard}
+            onPress={() => {
+              router.push({
+                pathname: '/(roles)/(citizen)/service-providers/[id]',
+                params: {
+                  id: item.id,
+                  name: item.businessName || item.name,
+                  serviceName: selectedService?.name,
+                  serviceCategory: selectedService?.category,
+                  city: item.city,
+                  state: item.state,
+                  experienceYears: item.experienceYears != null ? String(item.experienceYears) : undefined,
+                  workingHours: item.workingHours,
+                  servicesOffered: item.servicesOffered,
+                  serviceId: selectedServiceId,
+                },
+              });
+            }}
+          >
             <View style={styles.providerHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.providerName}>{item.businessName || item.name || 'Verified Provider'}</Text>
