@@ -10,6 +10,7 @@ import { Button } from '../Button';
 import { theme } from '../../styles/theme';
 import { router } from 'expo-router';
 import { showAlert } from '../../utils/alert';
+import { HubPicker, SelectedHubLocation } from './HubPicker';
 
 const fetchAppointments = async (role: string | null) => {
   const loadServiceMeetings = ['citizen', 'business', 'hub', 'service_provider'].includes(role || '');
@@ -45,6 +46,7 @@ export function AppointmentsList() {
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [proposalPlace, setProposalPlace] = useState('advocate_office');
   const [proposalAddress, setProposalAddress] = useState('');
+  const [proposalHub, setProposalHub] = useState<SelectedHubLocation | null>(null);
   const [followupForm, setFollowupForm] = useState({ when: '', reason: '' });
 
   const { data: allRows = [], isLoading } = useQuery({
@@ -232,6 +234,19 @@ export function AppointmentsList() {
             {proposalPlace === 'citizen' && (
               <TextInput style={styles.input} placeholder="Meeting address" value={proposalAddress} onChangeText={setProposalAddress} />
             )}
+            <TouchableOpacity style={styles.radioRow} onPress={() => setProposalPlace('lone_hub')}>
+              <Ionicons name={proposalPlace === 'lone_hub' ? 'radio-button-on' : 'radio-button-off'} size={20} color={theme.colors.primary} />
+              <Text style={styles.radioLabel}>LegalNow Hub near us</Text>
+            </TouchableOpacity>
+            {proposalPlace === 'lone_hub' && (
+              <HubPicker
+                when={data.startTime}
+                durationMinutes={data.durationMinutes}
+                appointmentId={data.id}
+                selectedId={proposalHub?.hubId}
+                onSelect={setProposalHub}
+              />
+            )}
           </View>
           <Button
             title="Send proposal"
@@ -239,10 +254,18 @@ export function AppointmentsList() {
               id: data.id,
               kind,
               endpoint: data.canRespond ? 'accept' : 'location',
-              payload: { location: { type: proposalPlace, address: proposalPlace === 'citizen' ? proposalAddress : undefined } }
+              payload: {
+                location: {
+                  type: proposalPlace,
+                  address: proposalPlace === 'citizen' ? proposalAddress : undefined,
+                  hubId: proposalPlace === 'lone_hub' ? proposalHub?.hubId : undefined,
+                  lat: proposalPlace === 'lone_hub' ? proposalHub?.lat : undefined,
+                  lng: proposalPlace === 'lone_hub' ? proposalHub?.lng : undefined,
+                }
+              }
             })}
             isLoading={actionMutation.isPending}
-            disabled={proposalPlace === 'citizen' && !proposalAddress.trim()}
+            disabled={(proposalPlace === 'citizen' && !proposalAddress.trim()) || (proposalPlace === 'lone_hub' && !proposalHub)}
           />
         </View>
       );

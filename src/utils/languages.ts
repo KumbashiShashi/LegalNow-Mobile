@@ -14,3 +14,4 @@ export const LANGUAGES = [
 ] as const;
 
 export type Language = typeof LANGUAGES[number];
+

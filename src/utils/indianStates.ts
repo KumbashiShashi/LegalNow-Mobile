@@ -8,3 +8,4 @@ export const INDIAN_STATES = [
 ] as const;
 
 export type IndianState = typeof INDIAN_STATES[number];
+

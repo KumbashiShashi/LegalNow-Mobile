@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../api/axiosClient';
 import { theme } from '../../styles/theme';
 import { Button } from '../Button';
 import { showAlert } from '../../utils/alert';
+import { HubPicker, SelectedHubLocation } from './HubPicker';
 
 interface ServiceMeetingSchedulerProps {
   leadId: string;
@@ -20,22 +21,8 @@ export function ServiceMeetingScheduler({ leadId, onSuccess, onClose }: ServiceM
   const [durationMinutes] = useState(30);
   const [locationType, setLocationType] = useState<'provider_office' | 'lone_hub'>('provider_office');
   const [locationAddress, setLocationAddress] = useState('');
-  const [searchCity, setSearchCity] = useState('');
-  const [selectedHub, setSelectedHub] = useState<any>(null);
+  const [selectedHub, setSelectedHub] = useState<SelectedHubLocation | null>(null);
   const [notes, setNotes] = useState('');
-
-  // Fetch hubs when locationType is lone_hub
-  const { data: hubData, isLoading: loadingHubs, refetch: refetchHubs } = useQuery({
-    queryKey: ['available-hubs', searchCity],
-    queryFn: async () => {
-      if (!searchCity.trim()) return [];
-      const { data } = await apiClient.get('/hubs/available', {
-        params: { city: searchCity.trim(), durationMinutes: 30 }
-      });
-      return Array.isArray(data?.hubs) ? data.hubs : [];
-    },
-    enabled: locationType === 'lone_hub' && searchCity.trim().length >= 2,
-  });
 
   const proposeMutation = useMutation({
     mutationFn: async () => {
@@ -58,7 +45,9 @@ export function ServiceMeetingScheduler({ leadId, onSuccess, onClose }: ServiceM
         durationMinutes,
         locationType,
         locationAddress: locationType === 'provider_office' ? locationAddress.trim() : undefined,
-        hubId: locationType === 'lone_hub' ? selectedHub.id : undefined,
+        hubId: locationType === 'lone_hub' ? selectedHub?.hubId : undefined,
+        lat: locationType === 'lone_hub' ? selectedHub?.lat : undefined,
+        lng: locationType === 'lone_hub' ? selectedHub?.lng : undefined,
         notes: notes.trim() || undefined,
       };
 
@@ -152,39 +141,12 @@ export function ServiceMeetingScheduler({ leadId, onSuccess, onClose }: ServiceM
           </View>
         ) : (
           <View style={{ marginTop: 8 }}>
-            <Text style={styles.label}>Search Hub by City *</Text>
-            <View style={styles.searchRow}>
-              <TextInput
-                style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                placeholder="e.g. Bengaluru, Hyderabad"
-                placeholderTextColor={theme.colors.muted}
-                value={searchCity}
-                onChangeText={setSearchCity}
-              />
-              <TouchableOpacity style={styles.searchButton} onPress={() => refetchHubs()}>
-                <Ionicons name="search" size={18} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            {loadingHubs && <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginVertical: 8 }} />}
-
-            {hubData && hubData.length > 0 && (
-              <View style={styles.hubList}>
-                {hubData.map((hub: any) => {
-                  const isSelected = selectedHub?.id === hub.id;
-                  return (
-                    <TouchableOpacity
-                      key={hub.id}
-                      style={[styles.hubCard, isSelected && styles.hubCardSelected]}
-                      onPress={() => setSelectedHub(hub)}
-                    >
-                      <Text style={styles.hubName}>{hub.shopName}</Text>
-                      <Text style={styles.hubAddress}>{hub.addressLine1}, {hub.city}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
+            <HubPicker
+              when={`${meetingDate || '2026-11-15'}T${meetingTime || '14:30'}:00Z`}
+              durationMinutes={durationMinutes}
+              selectedId={selectedHub?.hubId}
+              onSelect={setSelectedHub}
+            />
           </View>
         )}
       </View>

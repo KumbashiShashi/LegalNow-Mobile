@@ -8,7 +8,7 @@ import { theme } from '../../../../styles/theme';
 import { Card } from '../../../../components/Card';
 import { Badge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
-import { Hub } from '../../../../types/api';
+import { HubPicker } from '../../../../components/shared/HubPicker';
 
 const fetchAdvocateProfile = async (id: string) => {
   const { data } = await apiClient.get(`/marketplace/professionals/${id}`);
@@ -17,11 +17,6 @@ const fetchAdvocateProfile = async (id: string) => {
 
 const fetchMyProblems = async () => {
   const { data } = await apiClient.get('/problems/mine');
-  return Array.isArray(data) ? data : [];
-};
-
-const fetchAvailableHubs = async (): Promise<Hub[]> => {
-  const { data } = await apiClient.get('/hubs/available');
   return Array.isArray(data) ? data : [];
 };
 
@@ -49,12 +44,6 @@ export default function AdvocateProfileScreen() {
     queryKey: ['my-problems'],
     queryFn: fetchMyProblems,
     enabled: bookingPanelOpen,
-  });
-
-  const { data: hubs = [], isLoading: loadingHubs } = useQuery({
-    queryKey: ['available-hubs'],
-    queryFn: fetchAvailableHubs,
-    enabled: bookingPanelOpen && locationType === 'lone_hub',
   });
 
   const bookMutation = useMutation({
@@ -175,11 +164,17 @@ export default function AdvocateProfileScreen() {
         </View>
 
         {!bookingPanelOpen ? (
-          <Button
-            title="Book Consultation"
-            onPress={() => setBookingPanelOpen(true)}
-            style={{ marginTop: 14 }}
-          />
+          <View style={{ marginTop: 14, gap: 8 }}>
+            <Button
+              title="Request an Appointment"
+              onPress={() => router.push({ pathname: '/(roles)/(citizen)/advocates/book', params: { id } })}
+            />
+            <Button
+              title="Quick Booking Panel"
+              variant="secondary"
+              onPress={() => setBookingPanelOpen(true)}
+            />
+          </View>
         ) : (
           <View style={styles.bookingPanel}>
             <Text style={styles.bookingTitle}>Schedule Appointment</Text>
@@ -267,29 +262,12 @@ export default function AdvocateProfileScreen() {
             )}
 
             {locationType === 'lone_hub' && (
-              <View style={{ marginBottom: 12 }}>
-                <Text style={styles.subLabel}>Choose Verified LegalNow Hub:</Text>
-                {loadingHubs ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', gap: 6 }}>
-                    {hubs.map((hub) => (
-                      <TouchableOpacity
-                        key={hub.id}
-                        style={[styles.hubCard, selectedHubId === hub.id && styles.hubCardSelected]}
-                        onPress={() => setSelectedHubId(hub.id)}
-                      >
-                        <Text style={[styles.hubName, selectedHubId === hub.id && { color: '#FFF' }]}>
-                          {hub.shopName}
-                        </Text>
-                        <Text style={[styles.hubCity, selectedHubId === hub.id && { color: '#E0E0E0' }]}>
-                          {hub.city || 'Nearby Hub'}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                )}
-              </View>
+              <HubPicker
+                when={`${meetingDate || '2026-11-15'}T${meetingTime || '10:00'}:00Z`}
+                durationMinutes={Number(duration)}
+                selectedId={selectedHubId}
+                onSelect={(h) => setSelectedHubId(h.hubId)}
+              />
             )}
 
             <Text style={styles.inputLabel}>Notes for Advocate</Text>
