@@ -17,3 +17,4 @@ describe('API Client Path Normalization', () => {
     expect(normalizeEndpoint('/problems/mine')).toBe('/problems/mine');
   });
 });
+

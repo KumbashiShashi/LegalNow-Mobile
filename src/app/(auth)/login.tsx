@@ -146,15 +146,15 @@ export default function LoginScreen() {
             <View style={styles.registerContainer}>
               <Text style={styles.registerHint}>New to LegalNow?</Text>
               <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-                <Text style={styles.registerLink}> Register as Citizen or Professional</Text>
+                <Text style={styles.registerLink}> Register as Citizen, Business, Service Provider or Advocate</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.adminNote}>
+            {/* <View style={styles.adminNote}>
               <Text style={styles.adminNoteText}>
                 Are you a platform administrator? Admin functions are accessible via the LegalNow Web Portal only.
               </Text>
-            </View>
+            </View> */}
           </>
         )}
       </View>

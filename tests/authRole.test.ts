@@ -31,3 +31,4 @@ describe('Auth Role & Permissions Validation', () => {
     expect(isAllowedOnMobile('superadmin')).toBe(false);
   });
 });
+

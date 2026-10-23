@@ -233,3 +233,4 @@ export interface Invoice {
   customerGstin?: string;
   createdAt: string;
 }
+

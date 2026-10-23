@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, FlatList, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../api/axiosClient';
@@ -7,6 +7,9 @@ import { theme } from '../../../styles/theme';
 import { Card } from '../../../components/Card';
 import { Badge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
+import { ServiceConversation } from '../../../components/shared/ServiceConversation';
+import { ServiceMeetingScheduler } from '../../../components/shared/ServiceMeetingScheduler';
+import { showAlert } from '../../../utils/alert';
 
 const fetchLeads = async () => {
   const { data } = await apiClient.get('/service-marketplace/leads');
@@ -16,6 +19,8 @@ const fetchLeads = async () => {
 export default function ProviderDashboardScreen() {
   const queryClient = useQueryClient();
   const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [activeChatLead, setActiveChatLead] = useState<any | null>(null);
+  const [activeMeetingLead, setActiveMeetingLead] = useState<any | null>(null);
 
   const { data: leads = [], isLoading, error } = useQuery({
     queryKey: ['provider-leads'],
@@ -25,16 +30,32 @@ export default function ProviderDashboardScreen() {
 
   const respondMutation = useMutation({
     mutationFn: async ({ leadId, response }: { leadId: string, response: 'accepted' | 'rejected' }) => {
+      setRespondingId(leadId);
       const { data } = await apiClient.post(`/service-marketplace/leads/${leadId}/respond`, { response });
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['provider-leads'] });
       setRespondingId(null);
-      Alert.alert('Success', 'Response submitted successfully.');
+      showAlert('Success', 'Lead response recorded.');
     },
     onError: (err: any) => {
-      Alert.alert('Error', err.response?.data?.message || 'Could not submit response.');
+      setRespondingId(null);
+      showAlert('Error', err.response?.data?.message || 'Could not submit response.');
+    }
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: async ({ leadId, status }: { leadId: string, status: 'in_progress' | 'completed' | 'cancelled' }) => {
+      const { data } = await apiClient.put(`/service-marketplace/leads/${leadId}/status`, { status });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['provider-leads'] });
+      showAlert('Updated', 'Service status updated successfully.');
+    },
+    onError: (err: any) => {
+      showAlert('Error', err.response?.data?.message || 'Could not update status.');
     }
   });
 
@@ -63,6 +84,8 @@ export default function ProviderDashboardScreen() {
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => {
             const isPending = item.status === 'matched' || item.status === 'pending';
+            const isAccepted = item.status === 'accepted' || item.status === 'in_progress';
+            const isCompleted = item.status === 'completed';
 
             return (
               <Card style={styles.card}>
@@ -98,6 +121,54 @@ export default function ProviderDashboardScreen() {
                     />
                   </View>
                 )}
+
+                {isAccepted && (
+                  <View style={styles.serviceActionsWrap}>
+                    <View style={styles.actionRow}>
+                      <TouchableOpacity
+                        style={styles.toolButton}
+                        onPress={() => setActiveChatLead(item)}
+                      >
+                        <Ionicons name="chatbubbles-outline" size={16} color={theme.colors.primary} />
+                        <Text style={styles.toolButtonText}>Direct Chat</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.toolButton}
+                        onPress={() => setActiveMeetingLead(item)}
+                      >
+                        <Ionicons name="calendar-outline" size={16} color={theme.colors.primary} />
+                        <Text style={styles.toolButtonText}>Propose Meeting</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={[styles.actionRow, { marginTop: 8 }]}>
+                      {item.status === 'accepted' && (
+                        <Button
+                          title="Mark In-Progress"
+                          variant="secondary"
+                          onPress={() => statusMutation.mutate({ leadId: item.id, status: 'in_progress' })}
+                          isLoading={statusMutation.isPending}
+                          style={{ flex: 1 }}
+                        />
+                      )}
+                      <Button
+                        title="Mark Completed"
+                        variant="primary"
+                        onPress={() => statusMutation.mutate({ leadId: item.id, status: 'completed' })}
+                        isLoading={statusMutation.isPending}
+                        style={{ flex: 1 }}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {isCompleted && (
+                  <View style={styles.completedBadge}>
+                    <Ionicons name="checkmark-circle" size={16} color="#137333" />
+                    <Text style={styles.completedText}>Service fulfillment completed</Text>
+                  </View>
+                )}
               </Card>
             );
           }}
@@ -110,6 +181,45 @@ export default function ProviderDashboardScreen() {
           }
         />
       )}
+
+      {/* Direct Chat Modal */}
+      <Modal
+        visible={!!activeChatLead}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setActiveChatLead(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {activeChatLead && (
+              <ServiceConversation
+                leadId={activeChatLead.id}
+                onClose={() => setActiveChatLead(null)}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Propose Meeting Modal */}
+      <Modal
+        visible={!!activeMeetingLead}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setActiveMeetingLead(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {activeMeetingLead && (
+              <ServiceMeetingScheduler
+                leadId={activeMeetingLead.id}
+                onSuccess={() => setActiveMeetingLead(null)}
+                onClose={() => setActiveMeetingLead(null)}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -130,8 +240,51 @@ const styles = StyleSheet.create({
   customerText: { ...theme.typography.body, marginBottom: 8 },
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   locationText: { fontSize: 13, color: theme.colors.muted, marginLeft: 4 },
-  actionRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  serviceActionsWrap: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  toolButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primaryLight,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: theme.borderRadius.md,
+    gap: 6,
+  },
+  toolButtonText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: theme.colors.primary,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#E6FCE6',
+    borderRadius: theme.borderRadius.sm,
+  },
+  completedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#137333',
+  },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60 },
   emptyTitle: { ...theme.typography.h3, marginTop: 12 },
   emptyText: { ...theme.typography.body, color: theme.colors.muted, textAlign: 'center', marginTop: 4 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+  },
 });

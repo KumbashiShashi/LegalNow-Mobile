@@ -54,9 +54,31 @@ export function AppointmentsList() {
   });
 
   const actionMutation = useMutation({
-    mutationFn: async ({ id, endpoint, payload }: { id: string, endpoint: string, payload: any }) => {
-      const url = endpoint === '__followup' ? '/appointments/follow-up' : `/appointments/${id}/${endpoint}`;
-      const { data } = await apiClient.post(url, payload);
+    mutationFn: async ({ id, kind = 'advocate', endpoint, payload }: { id: string, kind?: string, endpoint: string, payload: any }) => {
+      let url = '';
+      let body = payload;
+      if (kind === 'service-provider') {
+        if (endpoint === 'accept') {
+          url = `/service-meetings/${id}/respond`;
+          body = { response: 'accepted' };
+        } else if (endpoint === 'reject') {
+          url = `/service-meetings/${id}/respond`;
+          body = { response: 'rejected', reason: payload?.reason };
+        } else if (endpoint === 'reschedule') {
+          url = `/service-meetings/${id}/reschedule`;
+          body = { newStartTime: payload.startTime };
+        } else if (endpoint === 'complete') {
+          url = `/service-meetings/${id}/complete`;
+        } else if (endpoint === 'cancel') {
+          url = `/service-meetings/${id}/cancel`;
+          body = { reason: payload?.reason };
+        } else {
+          url = `/service-meetings/${id}/${endpoint}`;
+        }
+      } else {
+        url = endpoint === '__followup' ? '/appointments/follow-up' : `/appointments/${id}/${endpoint}`;
+      }
+      const { data } = await apiClient.post(url, body);
       return data;
     },
     onSuccess: () => {
@@ -157,6 +179,7 @@ export function AppointmentsList() {
             title="Send Follow-up Proposal"
             onPress={() => actionMutation.mutate({
               id: data.id,
+              kind,
               endpoint: '__followup',
               payload: { fromAppointmentId: data.id, startTime: new Date(followupForm.when).toISOString(), durationMinutes: 30, subject: followupForm.reason, location: { type: 'advocate_office' } }
             })}
@@ -182,6 +205,7 @@ export function AppointmentsList() {
             title="Save new time"
             onPress={() => actionMutation.mutate({
               id: data.id,
+              kind,
               endpoint: 'reschedule',
               payload: { startTime: new Date(rescheduleTime).toISOString() }
             })}
@@ -213,6 +237,7 @@ export function AppointmentsList() {
             title="Send proposal"
             onPress={() => actionMutation.mutate({
               id: data.id,
+              kind,
               endpoint: data.canRespond ? 'accept' : 'location',
               payload: { location: { type: proposalPlace, address: proposalPlace === 'citizen' ? proposalAddress : undefined } }
             })}
@@ -285,15 +310,15 @@ export function AppointmentsList() {
 
           {data.canRespond && (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-              <Button style={{flex: 1}} title="Accept" onPress={() => actionMutation.mutate({ id: data.id, endpoint: 'accept', payload: {} })} isLoading={actionMutation.isPending} />
+              <Button style={{flex: 1}} title="Accept" onPress={() => actionMutation.mutate({ id: data.id, kind, endpoint: 'accept', payload: {} })} isLoading={actionMutation.isPending} />
               <Button style={{flex: 1}} title="Change Place" variant="secondary" onPress={() => setPanelOpenFor(panelOpenFor === `${data.id}-place` ? null : `${data.id}-place`)} />
-              <Button style={{flex: 1}} title="Reject" variant="danger" onPress={() => actionMutation.mutate({ id: data.id, endpoint: 'reject', payload: { reason: 'Rejected via mobile app' } })} isLoading={actionMutation.isPending} />
+              <Button style={{flex: 1}} title="Reject" variant="danger" onPress={() => actionMutation.mutate({ id: data.id, kind, endpoint: 'reject', payload: { reason: 'Rejected via mobile app' } })} isLoading={actionMutation.isPending} />
             </View>
           )}
 
           {data.status === 'awaiting_location' && isOwner && data.locationProposedBy !== role && (data.locationType !== 'lone_hub' || data.hubId) && (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-              <Button style={{flex: 1}} title="Agree to place" onPress={() => actionMutation.mutate({ id: data.id, endpoint: 'location/agree', payload: {} })} isLoading={actionMutation.isPending} />
+              <Button style={{flex: 1}} title="Agree to place" onPress={() => actionMutation.mutate({ id: data.id, kind, endpoint: 'location/agree', payload: {} })} isLoading={actionMutation.isPending} />
               <Button style={{flex: 1}} title="Change Place" variant="secondary" onPress={() => setPanelOpenFor(panelOpenFor === `${data.id}-place` ? null : `${data.id}-place`)} />
             </View>
           )}
@@ -309,12 +334,12 @@ export function AppointmentsList() {
             <Button style={{marginTop: 8}} title="Book a Follow-up" variant="secondary" onPress={() => setPanelOpenFor(panelOpenFor === `${data.id}-followup` ? null : `${data.id}-followup`)} />
           )}
 
-          {isAdvocate && data.status === 'confirmed' && data.locationType !== 'lone_hub' && (
-            <Button style={{marginTop: 8}} title="Mark Meeting Held" onPress={() => actionMutation.mutate({ id: data.id, endpoint: 'complete', payload: {} })} isLoading={actionMutation.isPending} />
+          {(isAdvocate || role === 'service_provider') && data.status === 'confirmed' && data.locationType !== 'lone_hub' && (
+            <Button style={{marginTop: 8}} title="Mark Meeting Held" onPress={() => actionMutation.mutate({ id: data.id, kind, endpoint: 'complete', payload: {} })} isLoading={actionMutation.isPending} />
           )}
 
           {isOwner && ['pending_payment', 'requested', 'awaiting_location', 'awaiting_fees', 'confirmed'].includes(data.status) && data.locationType === 'lone_hub' && data.hubId && (
-            <Button style={{marginTop: 8}} title="Hub Closed / Unavailable" variant="danger" onPress={() => actionMutation.mutate({ id: data.id, endpoint: 'hub-unavailable', payload: {} })} isLoading={actionMutation.isPending} />
+            <Button style={{marginTop: 8}} title="Hub Closed / Unavailable" variant="danger" onPress={() => actionMutation.mutate({ id: data.id, kind, endpoint: 'hub-unavailable', payload: {} })} isLoading={actionMutation.isPending} />
           )}
 
           {/* Hub Owner Verify OTP Action */}

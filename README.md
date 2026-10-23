@@ -186,3 +186,4 @@ npx expo lint
 * **Session Stamp:** Every request validates the `sstamp` claim against the database. "Log out of all devices" invalidates active tokens instantly.
 * **OTP Rate Limiting:** Enforces 30-second cooldowns to prevent SMS/email flooding.
 * **No Server Secrets:** The mobile bundle contains zero database credentials, OTP provider secrets, or admin keys.
+

@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import { Card } from '../../../components/Card';
 import { Badge } from '../../../components/Badge';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Problem } from '../../../types/api';
+import { ServiceConversation } from '../../../components/shared/ServiceConversation';
 
 const fetchProblems = async (): Promise<Problem[]> => {
   const { data } = await apiClient.get('/problems/mine');
@@ -23,6 +24,7 @@ const fetchServiceRequests = async () => {
 export default function CitizenDashboard() {
   const { user, role } = useAuthStore();
   const isBusiness = role === 'business';
+  const [activeChatLeadId, setActiveChatLeadId] = useState<string | null>(null);
 
   const { data: problems = [], isLoading: loadingProblems, error: errorProblems } = useQuery({
     queryKey: ['problems'],
@@ -146,9 +148,34 @@ export default function CitizenDashboard() {
                 {request.serviceCategory || 'Service'} • {new Date(request.createdAt).toLocaleDateString()}
               </Text>
               {request.matches?.length > 0 ? (
-                <Text style={styles.metaText}>
-                  {request.matches.length} verified provider{request.matches.length > 1 ? 's' : ''} matched
-                </Text>
+                <View style={styles.matchesWrap}>
+                  <Text style={styles.metaText}>
+                    {request.matches.length} verified provider{request.matches.length > 1 ? 's' : ''} matched:
+                  </Text>
+                  {request.matches.map((match: any, idx: number) => {
+                    const isChattable = match.status === 'accepted' || match.status === 'in_progress';
+                    return (
+                      <View key={`${match.leadId || idx}`} style={styles.matchRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.providerNameText}>{match.providerName || 'Registered Provider'}</Text>
+                          <Text style={styles.providerMetaText}>
+                            Status: <Text style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>{match.status?.replace('_', ' ')}</Text>
+                            {match.providerPhone ? ` • ${match.providerPhone}` : ''}
+                          </Text>
+                        </View>
+                        {isChattable && (
+                          <TouchableOpacity
+                            style={styles.chatButton}
+                            onPress={() => setActiveChatLeadId(match.leadId)}
+                          >
+                            <Ionicons name="chatbubbles-outline" size={14} color="#fff" />
+                            <Text style={styles.chatButtonText}>Chat</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
               ) : (
                 <Text style={styles.mutedText}>Waiting for verified provider match in your area</Text>
               )}
@@ -200,6 +227,25 @@ export default function CitizenDashboard() {
           </Card>
         ))
       )}
+
+      {/* Direct Chat Modal */}
+      <Modal
+        visible={!!activeChatLeadId}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setActiveChatLeadId(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {activeChatLeadId && (
+              <ServiceConversation
+                leadId={activeChatLeadId}
+                onClose={() => setActiveChatLeadId(null)}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -245,6 +291,12 @@ const styles = StyleSheet.create({
   cardSubtitle: { fontSize: 12, color: theme.colors.muted, marginBottom: 6 },
   mutedText: { fontSize: 12, color: theme.colors.muted, fontStyle: 'italic' },
   metaText: { fontSize: 12, color: theme.colors.primary, fontWeight: '600' },
+  matchesWrap: { marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  matchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, backgroundColor: theme.colors.background, padding: 8, borderRadius: theme.borderRadius.sm },
+  providerNameText: { fontSize: 13, fontWeight: 'bold', color: theme.colors.text },
+  providerMetaText: { fontSize: 11, color: theme.colors.muted, marginTop: 2 },
+  chatButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.borderRadius.pill, gap: 4 },
+  chatButtonText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   assignedText: { fontSize: 12, color: '#137333', fontWeight: '600', marginTop: 4 },
   cardFooter: { marginTop: 8, alignItems: 'flex-end' },
   linkText: { fontSize: 13, color: theme.colors.primary, fontWeight: '600' },
@@ -253,4 +305,15 @@ const styles = StyleSheet.create({
   emptySubtitle: { ...theme.typography.body, textAlign: 'center', color: theme.colors.muted, marginTop: 6, marginBottom: 16 },
   primaryButton: { backgroundColor: theme.colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: theme.borderRadius.sm },
   primaryButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+  },
 });
