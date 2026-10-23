@@ -9,11 +9,13 @@ import { theme } from '../../../styles/theme';
 import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { Badge } from '../../../components/Badge';
+import { ChangePasswordModal } from '../../../components/shared/ChangePasswordModal';
 
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuthStore();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [aadharInput, setAadharInput] = useState('');
   const [form, setForm] = useState({
     firstName: '',
@@ -294,6 +296,12 @@ export default function ProfileScreen() {
       {/* Account Actions */}
       <Card style={styles.sectionCard}>
         <Button
+          title="Change Password"
+          variant="secondary"
+          onPress={() => setShowChangePassword(true)}
+          style={{ marginBottom: 12 }}
+        />
+        <Button
           title="Log Out"
           variant="secondary"
           onPress={async () => {
@@ -325,6 +333,13 @@ export default function ProfileScreen() {
           }}
         />
       </Card>
+
+      <ChangePasswordModal
+        visible={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        email={currentProfile?.email}
+        phone={currentProfile?.phone}
+      />
     </ScrollView>
   );
 }

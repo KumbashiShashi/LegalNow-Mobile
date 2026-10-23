@@ -8,6 +8,7 @@ import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { Badge } from '../../../components/Badge';
 import { showAlert } from '../../../utils/alert';
+import { ChangePasswordModal } from '../../../components/shared/ChangePasswordModal';
 
 
 const fetchProfile = async () => {
@@ -21,7 +22,8 @@ const fetchCategories = async () => {
 };
 
 export default function AdvocateProfileScreen() {
-  const { logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
 
@@ -260,7 +262,9 @@ export default function AdvocateProfileScreen() {
         )}
       </Card>
 
+      <Button title="Change Password" variant="secondary" onPress={() => setShowChangePassword(true)} style={{ marginTop: theme.spacing.md }} />
       <Button title="Sign Out" variant="danger" onPress={logout} style={{ marginTop: theme.spacing.lg }} />
+      <ChangePasswordModal visible={showChangePassword} onClose={() => setShowChangePassword(false)} email={user?.email} phone={user?.phone} />
     </ScrollView>
   );
 }
