@@ -1,0 +1,68 @@
+import axios from 'axios';
+import { getItemAsync } from '../utils/storage';
+import { Platform } from 'react-native';
+import { useAuthStore } from '../store/useAuthStore';
+
+// Resolves API host dynamically:
+// - Physical Android / iOS devices can set EXPO_PUBLIC_API_URL in .env (e.g., http://192.168.1.X:5000)
+// - Android Studio Emulator routes to host via 10.0.2.2
+// - iOS Simulator and Web connect via localhost:5000
+const getApiBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    const raw = process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
+    return raw.endsWith('/api') ? raw : `${raw}/api`;
+  }
+
+  if (__DEV__) {
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:5000/api';
+    }
+    return 'http://localhost:5000/api';
+  }
+
+  // Production fallback
+  return 'https://api.legalnow.com/api';
+};
+
+// eslint-disable-next-line import/no-named-as-default-member
+export const apiClient = axios.create({
+  baseURL: getApiBaseUrl(),
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 20000,
+});
+
+// Request Interceptor: Attach bearer token and normalize endpoint paths
+apiClient.interceptors.request.use(
+  async (config) => {
+    try {
+      const token = await getItemAsync('access_token');
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch {
+      // Never crash on token retrieval
+    }
+
+    // Defense-in-depth: If config.url starts with '/api/', strip it because baseURL already ends with '/api'
+    if (config.url && config.url.startsWith('/api/')) {
+      config.url = config.url.replace(/^\/api/, '');
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response Interceptor: Global 401 handling & session expiration
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response && error.response.status === 401) {
+      // Securely clear session on 401 Unauthorized
+      await useAuthStore.getState().logout();
+    }
+    return Promise.reject(error);
+  }
+);
