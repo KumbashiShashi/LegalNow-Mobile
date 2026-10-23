@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { getItemAsync } from '../utils/storage';
-import { Platform } from 'react-native';
 import { useAuthStore } from '../store/useAuthStore';
 
 // Resolves API host dynamically:
@@ -14,9 +13,8 @@ const getApiBaseUrl = () => {
   }
 
   if (__DEV__) {
-    if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:5000/api';
-    }
+    // In dev, localhost:5000 is accessible via adb reverse tcp:5000 tcp:5000 on Android emulator,
+    // and directly on iOS simulator and Web.
     return 'http://localhost:5000/api';
   }
 

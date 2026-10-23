@@ -88,7 +88,12 @@ export default function LoginScreen() {
         },
       });
     } catch (error: any) {
-      const msg = error.response?.data?.message || 'Failed to send OTP code. Please check your input.';
+      const msg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        (typeof error.response?.data === 'string' ? error.response.data : null) ||
+        error.message ||
+        'Failed to send OTP code. Please check your input.';
       setApiError(msg);
     } finally {
       setIsLoading(false);
@@ -138,7 +143,12 @@ export default function LoginScreen() {
           break;
       }
     } catch (error: any) {
-      const msg = error.response?.data?.message || 'Invalid email or password. Please try again.';
+      const msg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        (typeof error.response?.data === 'string' ? error.response.data : null) ||
+        error.message ||
+        'Invalid email or password. Please try again.';
       setApiError(msg);
     } finally {
       setIsLoading(false);

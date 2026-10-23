@@ -41,7 +41,9 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "jest"
+    "test": "jest",
+    "adb:reverse": "adb reverse tcp:8081 tcp:8081 && adb reverse tcp:5000 tcp:5000",
+    "emulator:open": "adb shell am start -a android.intent.action.VIEW -d exp://localhost:8081"
   },
   "private": true
 }
