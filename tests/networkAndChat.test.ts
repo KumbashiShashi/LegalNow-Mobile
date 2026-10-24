@@ -63,3 +63,4 @@ describe('Chat Message Attachment & URL Processing', () => {
     expect(mediaUrl(s3Url)).toBe(s3Url);
   });
 });
+

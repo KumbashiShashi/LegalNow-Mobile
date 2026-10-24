@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Modal,
+  Alert,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as DocumentPicker from 'expo-document-picker';
@@ -949,7 +950,35 @@ export default function ServiceProviderProfileScreen() {
           onPress={() => setShowChangePassword(true)}
           style={{ marginBottom: 10 }}
         />
-        <Button title="Sign Out" variant="danger" onPress={logout} />
+        <Button
+          title="Sign Out"
+          variant="secondary"
+          onPress={logout}
+          style={{ marginBottom: 10 }}
+        />
+        <Button
+          title="Log Out of All Devices"
+          variant="danger"
+          onPress={() => {
+            Alert.alert(
+              'Log Out Everywhere',
+              'This will invalidate your security stamp and sign you out across all mobile and web devices.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Log Out Everywhere',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await apiClient.post('/auth/logout-all-devices');
+                    } catch {}
+                    await logout();
+                  },
+                },
+              ]
+            );
+          }}
+        />
       </View>
 
       {/* Change Password Modal */}

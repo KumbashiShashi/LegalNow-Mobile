@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TextInput, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TextInput, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../api/axiosClient';
 import { theme } from '../../../styles/theme';
@@ -256,7 +256,31 @@ export default function LoneHubProfileScreen() {
         )}
       </Card>
       <Button title="Change Password" variant="secondary" onPress={() => setShowChangePassword(true)} style={{ marginTop: theme.spacing.md }} />
-      <Button title="Sign Out" variant="danger" onPress={logout} style={{ marginTop: theme.spacing.sm }} />
+      <Button title="Sign Out" variant="secondary" onPress={logout} style={{ marginTop: theme.spacing.sm }} />
+      <Button
+        title="Log Out of All Devices"
+        variant="danger"
+        style={{ marginTop: theme.spacing.sm }}
+        onPress={() => {
+          Alert.alert(
+            'Log Out Everywhere',
+            'This will invalidate your security stamp and sign you out across all mobile and web devices.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Log Out Everywhere',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await apiClient.post('/auth/logout-all-devices');
+                  } catch {}
+                  await logout();
+                },
+              },
+            ]
+          );
+        }}
+      />
       <ChangePasswordModal visible={showChangePassword} onClose={() => setShowChangePassword(false)} email={user?.email} phone={user?.phone} />
     </ScrollView>
   );

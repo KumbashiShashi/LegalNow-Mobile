@@ -12,3 +12,4 @@ export const useNetworkStore = create<NetworkState>((set) => ({
   setOffline: (offline: boolean, error: string | null = null) =>
     set({ isOffline: offline, lastError: error }),
 }));
+
