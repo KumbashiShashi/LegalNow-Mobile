@@ -510,7 +510,7 @@ export function AppointmentsList() {
             <Button style={{ marginTop: 8 }} title="Mark Meeting Held" onPress={() => actionMutation.mutate({ id: data.id, kind, endpoint: 'complete', payload: {} })} isLoading={actionMutation.isPending} />
           )}
 
-          {isOwner && ['pending_payment', 'requested', 'awaiting_location', 'awaiting_fees', 'confirmed'].includes(data.status) && data.locationType === 'lone_hub' && data.hubId && (
+          {isOwner && data.status !== 'pending_payment' && ['requested', 'awaiting_location', 'awaiting_fees', 'confirmed'].includes(data.status) && data.locationType === 'lone_hub' && data.hubId && (
             <Button style={{ marginTop: 8 }} title="Hub Closed / Unavailable" variant="danger" onPress={() => actionMutation.mutate({ id: data.id, kind, endpoint: 'hub-unavailable', payload: {} })} isLoading={actionMutation.isPending} />
           )}
 

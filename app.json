@@ -1,14 +1,15 @@
 {
   "expo": {
-    "name": "LegalNow-Mobile",
-    "slug": "LegalNow-Mobile",
+    "name": "LegalNow",
+    "slug": "legalnow-mobile",
     "version": "1.0.0",
     "scheme": "legalnow",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.legalnow.mobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,14 +19,15 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.LegalNowMobile"
+      "package": "com.legalnow.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font"
     ]
   }
 }
