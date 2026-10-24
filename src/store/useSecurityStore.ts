@@ -38,3 +38,4 @@ export const useSecurityStore = create<SecurityState>((set) => ({
   unlock: () => set({ isLocked: false }),
   lock: () => set({ isLocked: true }),
 }));
+

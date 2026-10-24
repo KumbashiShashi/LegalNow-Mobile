@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, FlatList, TextInput, ActivityIndicator, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { apiClient } from '../../../../api/axiosClient';
 import { theme } from '../../../../styles/theme';
 import { Card } from '../../../../components/Card';
 import { Badge } from '../../../../components/Badge';
 import { mediaUrl } from '../../../../utils/media';
+import { ADVOCATE_FILTERS, ADVOCATE_PROBLEM_SUGGESTIONS, AdvocateCategoryFilter } from '../../../../utils/directoryFilters';
 
 const fetchCategories = async () => {
   const { data } = await apiClient.get('/marketplace/categories');
@@ -25,11 +26,12 @@ const fetchProfessionals = async (category: string, search: string, location: st
 };
 
 export default function AdvocateDirectoryScreen() {
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const params = useLocalSearchParams<{ category?: string; search?: string }>();
+  const [search, setSearch] = useState(params.search || '');
+  const [selectedCategory, setSelectedCategory] = useState(params.category || '');
   const [city, setCity] = useState('');
 
-  const { data: categories = [] } = useQuery({
+  const { data: dbCategories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: fetchCategories,
   });
@@ -38,6 +40,22 @@ export default function AdvocateDirectoryScreen() {
     queryKey: ['advocates', selectedCategory, search, city],
     queryFn: () => fetchProfessionals(selectedCategory, search, city),
   });
+
+  const handleIconCategoryPress = (filter: AdvocateCategoryFilter) => {
+    if (selectedCategory.toLowerCase() === filter.name.toLowerCase()) {
+      setSelectedCategory('');
+    } else {
+      setSelectedCategory(filter.name);
+    }
+  };
+
+  const handleProblemPillPress = (problemText: string) => {
+    if (search === problemText) {
+      setSearch('');
+    } else {
+      setSearch(problemText);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -50,7 +68,7 @@ export default function AdvocateDirectoryScreen() {
             <Ionicons name="search" size={18} color={theme.colors.muted} style={{ marginRight: 6 }} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search name or expertise..."
+              placeholder="Search advocate, problem, or law..."
               placeholderTextColor={theme.colors.muted}
               value={search}
               onChangeText={setSearch}
@@ -79,7 +97,58 @@ export default function AdvocateDirectoryScreen() {
           </View>
         </View>
 
-        {/* Category Horizontal Scroll */}
+        {/* UI Visual Image / Icon Filters: Family, Business, Property, Criminal, Financial, Consumer */}
+        <Text style={styles.filterSubheader}>Browse by Practice Area</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.iconFiltersRow} contentContainerStyle={{ paddingRight: 16 }}>
+          {ADVOCATE_FILTERS.map((f) => {
+            const isSelected = selectedCategory.toLowerCase() === f.name.toLowerCase();
+            return (
+              <TouchableOpacity
+                key={f.id}
+                style={[
+                  styles.iconCard,
+                  isSelected && { borderColor: f.color, backgroundColor: f.bg },
+                ]}
+                onPress={() => handleIconCategoryPress(f)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.iconCircle, { backgroundColor: f.bg }]}>
+                  <Ionicons name={f.iconName as any} size={22} color={f.color} />
+                </View>
+                <Text style={[styles.iconCardTitle, isSelected && { color: f.color, fontWeight: '700' }]}>
+                  {f.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Text Filter with Default List of Problems */}
+        <Text style={styles.filterSubheader}>Common Legal Concerns</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.problemScroll} contentContainerStyle={{ paddingRight: 16 }}>
+          {ADVOCATE_PROBLEM_SUGGESTIONS.map((problem) => {
+            const isSelected = search.toLowerCase() === problem.toLowerCase();
+            return (
+              <TouchableOpacity
+                key={problem}
+                style={[styles.problemPill, isSelected && styles.problemPillActive]}
+                onPress={() => handleProblemPillPress(problem)}
+              >
+                <Ionicons
+                  name={isSelected ? 'checkmark-circle' : 'help-circle-outline'}
+                  size={14}
+                  color={isSelected ? '#FFF' : theme.colors.primary}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={[styles.problemPillText, isSelected && styles.problemPillTextActive]}>
+                  {problem}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Secondary Category Horizontal Scroll */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
           <TouchableOpacity
             style={[styles.categoryChip, !selectedCategory && styles.categoryChipActive]}
@@ -89,8 +158,8 @@ export default function AdvocateDirectoryScreen() {
               All Practice Areas
             </Text>
           </TouchableOpacity>
-          {categories.map((cat: string) => {
-            const active = selectedCategory === cat;
+          {dbCategories.map((cat: string) => {
+            const active = selectedCategory.toLowerCase() === cat.toLowerCase();
             return (
               <TouchableOpacity
                 key={cat}
@@ -111,6 +180,17 @@ export default function AdvocateDirectoryScreen() {
         <Text style={styles.countText}>
           {isLoading ? 'Searching verified advocates...' : `${advocates.length} advocate${advocates.length === 1 ? '' : 's'} available`}
         </Text>
+        {(selectedCategory || search || city) ? (
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedCategory('');
+              setSearch('');
+              setCity('');
+            }}
+          >
+            <Text style={styles.clearLink}>Clear filters</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {isLoading ? (
@@ -119,6 +199,12 @@ export default function AdvocateDirectoryScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={32} color={theme.colors.danger} />
           <Text style={styles.errorText}>Could not load advocates. Please check network connection.</Text>
+        </View>
+      ) : advocates.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="search-outline" size={48} color={theme.colors.muted} />
+          <Text style={styles.emptyTitle}>No advocates match your filters</Text>
+          <Text style={styles.emptySubtitle}>Try choosing a different practice area, problem keyword, or city.</Text>
         </View>
       ) : (
         <FlatList
@@ -201,15 +287,6 @@ export default function AdvocateDirectoryScreen() {
               </View>
             </Card>
           )}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="search-outline" size={48} color={theme.colors.border} />
-              <Text style={styles.emptyTitle}>No matching advocates</Text>
-              <Text style={styles.emptyText}>
-                Try adjusting your search criteria, selecting another practice area, or clearing filters.
-              </Text>
-            </View>
-          }
         />
       )}
     </View>
@@ -219,103 +296,141 @@ export default function AdvocateDirectoryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   filterSection: {
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+    paddingTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
   searchRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   searchBox: {
-    flex: 1,
+    flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.sm,
-    paddingHorizontal: 10,
-    height: 40,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: 10,
+    height: 42,
   },
   searchInput: { flex: 1, fontSize: 13, color: theme.colors.text },
   cityBox: {
-    width: 110,
+    flex: 1.1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.sm,
-    paddingHorizontal: 8,
-    height: 40,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: 8,
+    height: 42,
   },
   cityInput: { flex: 1, fontSize: 13, color: theme.colors.text },
-  categoryScroll: { flexDirection: 'row', paddingVertical: 2 },
+  filterSubheader: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.muted,
+    textTransform: 'uppercase',
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  iconFiltersRow: { flexDirection: 'row', marginBottom: 8 },
+  iconCard: {
+    width: 80,
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: '#FFFFFF',
+    marginRight: 8,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  iconCardTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  problemScroll: { flexDirection: 'row', marginBottom: 10 },
+  problemPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    backgroundColor: theme.colors.primaryLight,
+    borderWidth: 1,
+    borderColor: '#D2E3FC',
+    marginRight: 6,
+  },
+  problemPillActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  problemPillText: { fontSize: 11, color: theme.colors.primary, fontWeight: '600' },
+  problemPillTextActive: { color: '#FFFFFF' },
+  categoryScroll: { flexDirection: 'row', paddingVertical: 4 },
   categoryChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: theme.borderRadius.pill,
-    backgroundColor: theme.colors.background,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.border,
     marginRight: 6,
   },
-  categoryChipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+  categoryChipActive: { backgroundColor: theme.colors.secondary, borderColor: theme.colors.secondary },
+  categoryText: { fontSize: 12, color: theme.colors.text },
+  categoryTextActive: { color: '#FFFFFF', fontWeight: 'bold' },
+  countRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 8,
   },
-  categoryText: { fontSize: 12, color: theme.colors.text, fontWeight: '500' },
-  categoryTextActive: { color: '#FFF', fontWeight: '700' },
-  countRow: { paddingHorizontal: 16, paddingVertical: 8 },
-  countText: { fontSize: 12, color: theme.colors.muted, fontWeight: '500' },
-  listContent: { padding: 14, paddingTop: 4, paddingBottom: 32 },
-  card: { padding: 14, marginBottom: 10 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  countText: { fontSize: 12, color: theme.colors.muted, fontWeight: '600' },
+  clearLink: { fontSize: 12, color: theme.colors.primary, fontWeight: '700' },
+  listContent: { padding: theme.spacing.md, paddingBottom: 40 },
+  card: { padding: theme.spacing.md, marginBottom: theme.spacing.sm },
+  cardTop: { flexDirection: 'row', alignItems: 'center' },
   avatarWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
     backgroundColor: theme.colors.primaryLight,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
-  avatarText: { fontSize: 16, fontWeight: 'bold', color: theme.colors.primary },
+  avatarText: { fontSize: 18, fontWeight: 'bold', color: theme.colors.primary },
   nameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  advocateName: { ...theme.typography.h3, fontSize: 15, flex: 1, marginRight: 6 },
+  advocateName: { fontSize: 15, fontWeight: 'bold', color: theme.colors.text, flex: 1, marginRight: 6 },
   locationText: { fontSize: 12, color: theme.colors.muted, marginTop: 2 },
-  bioText: { fontSize: 12, color: theme.colors.text, lineHeight: 16, marginBottom: 8 },
-  tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
-  tag: {
-    backgroundColor: theme.colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: theme.borderRadius.sm,
-  },
-  tagText: { fontSize: 11, color: theme.colors.primary, fontWeight: '600' },
-  subTag: { backgroundColor: '#F3F4F6' },
-  subTagText: { color: theme.colors.muted, fontWeight: '500' },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    paddingTop: 10,
-    marginTop: 4,
-  },
-  feeLabel: { fontSize: 12, fontWeight: '700', color: theme.colors.secondary },
-  bookCta: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: theme.borderRadius.sm,
-  },
-  bookCtaText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
-  emptyContainer: { alignItems: 'center', marginTop: 40, paddingHorizontal: 20 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: theme.colors.text, marginTop: 12 },
-  emptyText: { fontSize: 13, color: theme.colors.muted, textAlign: 'center', marginTop: 4 },
-  errorContainer: { alignItems: 'center', marginTop: 40, padding: 16 },
-  errorText: { color: theme.colors.danger, fontSize: 14, marginTop: 8, textAlign: 'center' },
+  bioText: { fontSize: 13, color: theme.colors.text, marginTop: 8, lineHeight: 18 },
+  tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 10 },
+  tag: { backgroundColor: theme.colors.surface, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: 1, borderColor: theme.colors.border },
+  tagText: { fontSize: 11, color: theme.colors.muted },
+  subTag: { backgroundColor: '#EBF4FE', borderColor: '#D2E3FC' },
+  subTagText: { color: theme.colors.primary },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  feeLabel: { fontSize: 13, fontWeight: '600', color: theme.colors.secondary },
+  bookCta: { backgroundColor: theme.colors.primary, paddingHorizontal: 14, paddingVertical: 6, borderRadius: theme.borderRadius.sm },
+  bookCtaText: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' },
+  errorContainer: { padding: 32, alignItems: 'center' },
+  errorText: { marginTop: 8, color: theme.colors.danger, textAlign: 'center', fontSize: 14 },
+  emptyContainer: { padding: 40, alignItems: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: 'bold', color: theme.colors.secondary, marginTop: 12 },
+  emptySubtitle: { fontSize: 13, color: theme.colors.muted, textAlign: 'center', marginTop: 4 },
 });

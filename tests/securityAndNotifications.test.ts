@@ -90,3 +90,4 @@ describe('handleNotificationRoute Deep-Link Routing', () => {
     expect(router.push).toHaveBeenCalledWith('/(roles)/(citizen)/subscription');
   });
 });
+

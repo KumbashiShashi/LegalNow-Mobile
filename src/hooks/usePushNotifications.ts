@@ -67,3 +67,4 @@ export function handleNotificationRoute(data: { link?: string; caseId?: string; 
     router.push(data.link as any);
   }
 }
+
