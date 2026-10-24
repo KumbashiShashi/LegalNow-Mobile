@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/axiosClient';
 
@@ -10,6 +11,15 @@ export function usePushNotifications() {
 
   useEffect(() => {
     if (!isAuthenticated || tokenRegisteredRef.current) return;
+
+    // Remote notifications are unavailable in Expo Go on Android since SDK 53
+    const isExpoGo =
+      Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+      (Constants as any).appOwnership === 'expo';
+
+    if (Platform.OS === 'android' && isExpoGo) {
+      return;
+    }
 
     // Lightweight registry hook to sync device push token when available
     async function registerDeviceToken() {

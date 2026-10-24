@@ -2,6 +2,19 @@ jest.mock('react-native', () => ({
   Platform: { OS: 'android' },
 }));
 
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    executionEnvironment: 'bare',
+    appOwnership: 'standalone',
+  },
+  ExecutionEnvironment: {
+    StoreClient: 'storeClient',
+    Standalone: 'standalone',
+    Bare: 'bare',
+  },
+}));
+
 jest.mock('../src/api/axiosClient', () => ({
   apiClient: {
     post: jest.fn(),

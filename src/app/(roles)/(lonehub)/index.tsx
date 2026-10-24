@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../api/axiosClient';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { theme } from '../../../styles/theme';
 import { router } from 'expo-router';
+import { Button } from '../../../components/Button';
+import { showAlert } from '../../../utils/alert';
 
 // Fetch hub profile
 const fetchHubProfile = async () => {
@@ -18,12 +20,33 @@ const fetchHubPayouts = async () => {
   return data;
 };
 
+// Fetch meetings scheduled at this hub
+const fetchHubMeetings = async () => {
+  const [appRes, svcRes] = await Promise.all([
+    apiClient.get('/appointments').catch(() => ({ data: [] })),
+    apiClient.get('/service-meetings/mine').catch(() => ({ data: [] })),
+  ]);
+
+  const combined = [
+    ...(Array.isArray(appRes.data) ? appRes.data : []).map((a: any) => ({ kind: 'advocate', ...a })),
+    ...(Array.isArray(svcRes.data) ? svcRes.data : []).map((s: any) => ({ kind: 'service-provider', ...s })),
+  ];
+
+  return combined.filter((m: any) => m.locationType === 'lone_hub' && ['confirmed', 'awaiting_location'].includes(m.status));
+};
+
 export default function LOneHubDashboardScreen() {
   const { logout } = useAuthStore();
   const queryClient = useQueryClient();
   const { data: hub, isLoading } = useQuery({ queryKey: ['hub-profile'], queryFn: fetchHubProfile, retry: false });
   const { data: payouts } = useQuery({ queryKey: ['hub-payouts'], queryFn: fetchHubPayouts, retry: false });
+  const { data: activeMeetings = [] } = useQuery({ queryKey: ['hub-active-meetings'], queryFn: fetchHubMeetings });
+
   const [showPayoutDetails, setShowPayoutDetails] = useState(false);
+  const [checkInModalVisible, setCheckInModalVisible] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<any | null>(null);
+  const [citizenOtp, setCitizenOtp] = useState('');
+  const [proOtp, setProOtp] = useState('');
 
   const devSubscribeMutation = useMutation({
     mutationFn: async () => {
@@ -36,6 +59,29 @@ export default function LOneHubDashboardScreen() {
     },
     onError: (err: any) => {
       Alert.alert('Error', err.response?.data?.message || 'Hub subscription failed.');
+    }
+  });
+
+  const checkInMutation = useMutation({
+    mutationFn: async ({ meetingId, kind, payload }: { meetingId: string; kind: string; payload: any }) => {
+      const endpoint = kind === 'advocate'
+        ? `/appointments/${meetingId}/hub-verify-otps`
+        : `/service-meetings/${meetingId}/hub-verify-otps`;
+      const { data } = await apiClient.post(endpoint, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hub-profile'] });
+      queryClient.invalidateQueries({ queryKey: ['hub-payouts'] });
+      queryClient.invalidateQueries({ queryKey: ['hub-active-meetings'] });
+      setCheckInModalVisible(false);
+      setSelectedMeeting(null);
+      setCitizenOtp('');
+      setProOtp('');
+      showAlert('Check-In Verified', 'Two-party OTP verification confirmed! Meeting marked completed and payout credited.');
+    },
+    onError: (err: any) => {
+      showAlert('Check-In Error', err.response?.data?.message || 'OTP verification failed. Please check both 6-digit codes.');
     }
   });
 
@@ -56,7 +102,7 @@ export default function LOneHubDashboardScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.eyebrow}>LegalNow Hub</Text>
           <Text style={styles.welcomeText}>{hub?.shopName || 'Your Hub'}</Text>
-          <Text style={styles.subtitle}>Host citizen-advocate meetings and earn payouts.</Text>
+          <Text style={styles.subtitle}>Host citizen-advocate meetings and earn convenience payouts.</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: live ? '#E6FCE6' : '#FEF7E0' }]}>
           <Text style={[styles.badgeText, { color: live ? '#137333' : '#B06000' }]}>
@@ -84,12 +130,37 @@ export default function LOneHubDashboardScreen() {
         </View>
       </View>
 
-      {/* Payout Details Card */}
+      {/* ==================== QUICK CHECK-IN ACTION CARD ==================== */}
+      <TouchableOpacity
+        style={styles.checkInCard}
+        onPress={() => {
+          setSelectedMeeting(activeMeetings[0] || null);
+          setCitizenOtp('');
+          setProOtp('');
+          setCheckInModalVisible(true);
+        }}
+        activeOpacity={0.8}
+      >
+        <View style={styles.checkInIconWrap}>
+          <Ionicons name="shield-checkmark" size={24} color="#FFF" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.checkInTitle}>Meeting Check-In (Verify OTPs)</Text>
+          <Text style={styles.checkInSubtitle}>
+            {activeMeetings.length > 0
+              ? `${activeMeetings.length} meeting(s) awaiting check-in at your Hub`
+              : 'Enter citizen + advocate codes when attendees arrive'}
+          </Text>
+        </View>
+        <Ionicons name="arrow-forward" size={20} color="#0066CC" />
+      </TouchableOpacity>
+
+      {/* Payout Details & Earnings Ledger Card */}
       <View style={[styles.statsCard, { flexDirection: 'column', alignItems: 'flex-start', gap: 10 }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <View>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.secondary }}>Payouts & Earnings</Text>
-            <Text style={{ fontSize: 12, color: theme.colors.muted }}>Earned from meetings hosted at your Hub</Text>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.secondary }}>Payouts & Earnings Ledger</Text>
+            <Text style={{ fontSize: 12, color: theme.colors.muted }}>Earned from verified meetings hosted at your Hub</Text>
           </View>
           <TouchableOpacity onPress={() => setShowPayoutDetails(!showPayoutDetails)} style={{ padding: 4 }}>
             <Ionicons name={showPayoutDetails ? 'chevron-up-circle' : 'chevron-down-circle'} size={24} color={theme.colors.primary} />
@@ -158,7 +229,7 @@ export default function LOneHubDashboardScreen() {
       <View style={styles.actionsGrid}>
         <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(roles)/(lonehub)/meetings')}>
           <Ionicons name="calendar-outline" size={24} color="#0066CC" />
-          <Text style={styles.actionText}>Hub Meetings</Text>
+          <Text style={styles.actionText}>All Meetings</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(roles)/(lonehub)/profile')}>
           <Ionicons name="settings-outline" size={24} color="#0066CC" />
@@ -170,12 +241,119 @@ export default function LOneHubDashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Workspace Note */}
-      <View style={styles.emptyState}>
-        <Ionicons name="business-outline" size={48} color="#CCC" />
-        <Text style={styles.emptyTitle}>Meeting Participation</Text>
-        <Text style={styles.emptySubtitle}>You will be asked to verify OTPs when citizens and advocates arrive at your Hub.</Text>
-      </View>
+      {/* ==================== HUB CHECK-IN MODAL ==================== */}
+      <Modal
+        visible={checkInModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCheckInModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <View>
+                <Text style={styles.modalHeading}>Verify Meeting OTPs</Text>
+                <Text style={{ fontSize: 12, color: theme.colors.muted, marginTop: 2 }}>
+                  Two-party participation verification
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setCheckInModalVisible(false)}>
+                <Ionicons name="close" size={22} color={theme.colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            {activeMeetings.length > 0 && (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.text, marginBottom: 6 }}>
+                  Select Scheduled Meeting:
+                </Text>
+                {activeMeetings.map((m: any) => (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={[styles.meetingSelectCard, selectedMeeting?.id === m.id && styles.meetingSelectCardActive]}
+                    onPress={() => setSelectedMeeting(m)}
+                  >
+                    <Ionicons
+                      name={selectedMeeting?.id === m.id ? 'radio-button-on' : 'radio-button-off'}
+                      size={18}
+                      color={selectedMeeting?.id === m.id ? theme.colors.primary : theme.colors.muted}
+                    />
+                    <View style={{ flex: 1, marginLeft: 8 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text }}>
+                        {m.citizenName || m.customerName || 'Citizen'} & {m.professionalName || m.serviceProviderName || 'Advocate/Provider'}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: theme.colors.muted }}>
+                        {new Date(m.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {m.subject || m.title || 'Consultation'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text, marginTop: 6, marginBottom: 4 }}>
+              1. Citizen 6-Digit Code
+            </Text>
+            <TextInput
+              style={styles.otpInput}
+              placeholder="e.g. 123456"
+              placeholderTextColor="#9AA0A6"
+              keyboardType="number-pad"
+              maxLength={6}
+              value={citizenOtp}
+              onChangeText={setCitizenOtp}
+            />
+
+            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text, marginTop: 12, marginBottom: 4 }}>
+              2. Advocate / Provider 6-Digit Code
+            </Text>
+            <TextInput
+              style={styles.otpInput}
+              placeholder="e.g. 654321"
+              placeholderTextColor="#9AA0A6"
+              keyboardType="number-pad"
+              maxLength={6}
+              value={proOtp}
+              onChangeText={setProOtp}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={() => setCheckInModalVisible(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Verify Both OTPs"
+                onPress={() => {
+                  if (!selectedMeeting) {
+                    showAlert('Meeting Required', 'Please select an active meeting to verify.');
+                    return;
+                  }
+                  if (citizenOtp.trim().length !== 6 || proOtp.trim().length !== 6) {
+                    showAlert('Invalid Codes', 'Please enter complete 6-digit codes for both attendees.');
+                    return;
+                  }
+
+                  const kind = selectedMeeting.kind || (selectedMeeting.serviceLeadId ? 'service-provider' : 'advocate');
+                  const payload = kind === 'advocate'
+                    ? { citizenOtp: citizenOtp.trim(), advocateOtp: proOtp.trim() }
+                    : { citizenOtp: citizenOtp.trim(), serviceProviderOtp: proOtp.trim() };
+
+                  checkInMutation.mutate({
+                    meetingId: selectedMeeting.id,
+                    kind,
+                    payload,
+                  });
+                }}
+                isLoading={checkInMutation.isPending}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -183,24 +361,31 @@ export default function LOneHubDashboardScreen() {
 const styles = StyleSheet.create({
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   container: { flex: 1, backgroundColor: '#F8F9FA' },
-  content: { padding: 16, paddingBottom: 32 },
-  banner: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
+  content: { padding: 16, paddingBottom: 36 },
+  banner: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 },
   eyebrow: { fontSize: 12, fontWeight: 'bold', color: '#666', textTransform: 'uppercase', marginBottom: 4 },
   welcomeText: { fontSize: 22, fontWeight: 'bold', color: '#1A1A1A' },
-  subtitle: { fontSize: 14, color: '#666', marginTop: 4, paddingRight: 8 },
+  subtitle: { fontSize: 13, color: '#666', marginTop: 4, paddingRight: 8 },
   errorBanner: { backgroundColor: '#FAD2CF', padding: 12, borderRadius: 8, marginBottom: 16 },
   errorBannerText: { color: '#D93025', fontSize: 13, fontWeight: '500' },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 4 },
   badgeText: { fontSize: 11, fontWeight: 'bold' },
-  statsCard: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  statsCard: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
   statItem: { flex: 1, alignItems: 'center' },
   statNumber: { fontSize: 22, fontWeight: 'bold', color: '#0066CC', marginBottom: 4 },
   statLabel: { fontSize: 11, color: '#666', textAlign: 'center' },
   statDivider: { width: 1, backgroundColor: '#E0E0E0' },
-  actionsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, gap: 12 },
-  actionButton: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
-  actionText: { fontSize: 13, fontWeight: '600', color: '#1A1A1A', marginTop: 8 },
-  emptyState: { alignItems: 'center', padding: 32, backgroundColor: '#FFF', borderRadius: 12, marginTop: 8 },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#1A1A1A', marginTop: 16 },
-  emptySubtitle: { fontSize: 14, color: '#666', textAlign: 'center', marginTop: 8, marginBottom: 24 },
+  checkInCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F0FE', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#D2E3FC' },
+  checkInIconWrap: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#0066CC', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  checkInTitle: { fontSize: 15, fontWeight: '700', color: '#1A73E8' },
+  checkInSubtitle: { fontSize: 12, color: '#5F6368', marginTop: 2 },
+  actionsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, gap: 10 },
+  actionButton: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  actionText: { fontSize: 12, fontWeight: '600', color: '#1A1A1A', marginTop: 6 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 18 },
+  modalContent: { backgroundColor: '#FFF', borderRadius: 14, padding: 20 },
+  modalHeading: { fontSize: 18, fontWeight: '700', color: '#202124' },
+  meetingSelectCard: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#DADCE0', marginBottom: 6 },
+  meetingSelectCardActive: { borderColor: '#0066CC', backgroundColor: '#F0F7FF' },
+  otpInput: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#DADCE0', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, letterSpacing: 3, textAlign: 'center', color: '#202124' },
 });
