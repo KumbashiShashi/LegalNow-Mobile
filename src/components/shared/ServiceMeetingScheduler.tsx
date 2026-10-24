@@ -30,7 +30,11 @@ export function ServiceMeetingScheduler({ leadId, onSuccess, onClose }: ServiceM
         throw new Error('Please select both date and time.');
       }
 
-      const isoTime = `${meetingDate}T${meetingTime}:00Z`;
+      const localStart = new Date(`${meetingDate}T${meetingTime}:00`);
+      if (Number.isNaN(localStart.getTime())) {
+        throw new Error('Enter a valid meeting date and time.');
+      }
+      const isoTime = localStart.toISOString();
 
       if (locationType === 'provider_office' && !locationAddress.trim()) {
         throw new Error('Please provide the provider office address.');
@@ -142,7 +146,7 @@ export function ServiceMeetingScheduler({ leadId, onSuccess, onClose }: ServiceM
         ) : (
           <View style={{ marginTop: 8 }}>
             <HubPicker
-              when={`${meetingDate || '2026-11-15'}T${meetingTime || '14:30'}:00Z`}
+              when={new Date(`${meetingDate || '2026-11-15'}T${meetingTime || '14:30'}:00`).toISOString()}
               durationMinutes={durationMinutes}
               selectedId={selectedHub?.hubId}
               onSelect={setSelectedHub}

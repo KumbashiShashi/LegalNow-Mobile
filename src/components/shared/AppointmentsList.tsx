@@ -103,8 +103,8 @@ export function AppointmentsList() {
   });
 
   const payFeeMutation = useMutation({
-    mutationFn: async (appointmentId: string) => {
-      const { data: order } = await apiClient.post(`/appointments/${appointmentId}/pay`);
+    mutationFn: async ({ id, kind }: { id: string; kind: string }) => {
+      const { data: order } = await apiClient.post(kind === 'service-provider' ? `/service-meetings/${id}/pay` : `/appointments/${id}/pay`);
       return order;
     },
     onSuccess: async (order) => {
@@ -172,8 +172,8 @@ export function AppointmentsList() {
   });
 
   const resendOtpMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await apiClient.post(`/appointments/${id}/hub-otps/resend`);
+    mutationFn: async ({ id, kind }: { id: string; kind: string }) => {
+      const { data } = await apiClient.post(kind === 'service-provider' ? `/service-meetings/${id}/hub-otps/resend` : `/appointments/${id}/hub-otps/resend`);
       return data;
     },
     onSuccess: () => {
@@ -223,7 +223,7 @@ export function AppointmentsList() {
             onPress={() => hubVerifyMutation.mutate({
               id: data.id,
               kind,
-              payload: { citizenOtp: otpForm.citizenOtp, [kind === 'advocate' ? 'advocateOtp' : 'providerOtp']: otpForm.professionalOtp }
+              payload: { citizenOtp: otpForm.citizenOtp, [kind === 'advocate' ? 'advocateOtp' : 'serviceProviderOtp']: otpForm.professionalOtp }
             })}
             isLoading={hubVerifyMutation.isPending}
             disabled={!otpForm.citizenOtp || !otpForm.professionalOtp}
@@ -463,7 +463,7 @@ export function AppointmentsList() {
           <View style={styles.otpBox}>
             <Text style={styles.otpLabel}>Hub Participation Code</Text>
             <Text style={styles.otpValue}>{data.myHubMeetingOtp}</Text>
-            <TouchableOpacity onPress={() => resendOtpMutation.mutate(data.id)} style={{ marginTop: 4 }}>
+            <TouchableOpacity onPress={() => resendOtpMutation.mutate({ id: data.id, kind })} style={{ marginTop: 4 }}>
               <Text style={styles.resendOtpLink}>Resend OTP via SMS/Email</Text>
             </TouchableOpacity>
           </View>
@@ -475,7 +475,7 @@ export function AppointmentsList() {
             <Button
               style={{ marginTop: 8 }}
               title={`Pay ₹${data.myFeeDue}`}
-              onPress={() => payFeeMutation.mutate(data.id)}
+              onPress={() => payFeeMutation.mutate({ id: data.id, kind })}
               isLoading={payFeeMutation.isPending}
             />
           )}
@@ -483,7 +483,7 @@ export function AppointmentsList() {
           {data.canRespond && (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
               <Button style={{ flex: 1 }} title="Accept" onPress={() => actionMutation.mutate({ id: data.id, kind, endpoint: 'accept', payload: {} })} isLoading={actionMutation.isPending} />
-              <Button style={{ flex: 1 }} title="Change Place" variant="secondary" onPress={() => setPanelOpenFor(panelOpenFor === `${data.id}-place` ? null : `${data.id}-place`)} />
+              {kind === 'advocate' && <Button style={{ flex: 1 }} title="Change Place" variant="secondary" onPress={() => setPanelOpenFor(panelOpenFor === `${data.id}-place` ? null : `${data.id}-place`)} />}
               <Button style={{ flex: 1 }} title="Decline" variant="danger" onPress={() => setPanelOpenFor(panelOpenFor === `${data.id}-reject` ? null : `${data.id}-reject`)} />
             </View>
           )}
@@ -510,7 +510,7 @@ export function AppointmentsList() {
             <Button style={{ marginTop: 8 }} title="Mark Meeting Held" onPress={() => actionMutation.mutate({ id: data.id, kind, endpoint: 'complete', payload: {} })} isLoading={actionMutation.isPending} />
           )}
 
-          {isOwner && data.status !== 'pending_payment' && ['requested', 'awaiting_location', 'awaiting_fees', 'confirmed'].includes(data.status) && data.locationType === 'lone_hub' && data.hubId && (
+          {kind === 'advocate' && isOwner && data.status !== 'pending_payment' && ['requested', 'awaiting_location', 'awaiting_fees', 'confirmed'].includes(data.status) && data.locationType === 'lone_hub' && data.hubId && (
             <Button style={{ marginTop: 8 }} title="Hub Closed / Unavailable" variant="danger" onPress={() => actionMutation.mutate({ id: data.id, kind, endpoint: 'hub-unavailable', payload: {} })} isLoading={actionMutation.isPending} />
           )}
 

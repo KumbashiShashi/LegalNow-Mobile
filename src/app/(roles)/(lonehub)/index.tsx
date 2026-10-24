@@ -225,17 +225,9 @@ export default function LOneHubDashboardScreen() {
         )}
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.actionsGrid}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(roles)/(lonehub)/meetings')}>
-          <Ionicons name="calendar-outline" size={24} color="#0066CC" />
-          <Text style={styles.actionText}>All Meetings</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(roles)/(lonehub)/profile')}>
-          <Ionicons name="settings-outline" size={24} color="#0066CC" />
-          <Text style={styles.actionText}>Hub Settings</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#FAD2CF' }]} onPress={logout}>
+      {/* Meetings and settings are already persistent tabs; keep only the non-navigation action here. */}
+      <View style={styles.actionsRow}>
+        <TouchableOpacity style={[styles.actionButton, styles.signOutButton]} onPress={logout}>
           <Ionicons name="log-out-outline" size={24} color="#D93025" />
           <Text style={[styles.actionText, { color: '#D93025' }]}>Sign Out</Text>
         </TouchableOpacity>
@@ -379,8 +371,9 @@ const styles = StyleSheet.create({
   checkInIconWrap: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#0066CC', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   checkInTitle: { fontSize: 15, fontWeight: '700', color: '#1A73E8' },
   checkInSubtitle: { fontSize: 12, color: '#5F6368', marginTop: 2 },
-  actionsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, gap: 10 },
-  actionButton: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  actionsRow: { marginBottom: 20 },
+  actionButton: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  signOutButton: { backgroundColor: '#FAD2CF' },
   actionText: { fontSize: 12, fontWeight: '600', color: '#1A1A1A', marginTop: 6 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 18 },
   modalContent: { backgroundColor: '#FFF', borderRadius: 14, padding: 20 },

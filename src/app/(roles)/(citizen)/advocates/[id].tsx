@@ -274,7 +274,7 @@ export default function AdvocateProfileScreen() {
 
             {locationType === 'lone_hub' && (
               <HubPicker
-                when={`${meetingDate || '2026-11-15'}T${meetingTime || '10:00'}:00Z`}
+                when={new Date(`${meetingDate || '2026-11-15'}T${meetingTime || '10:00'}:00`).toISOString()}
                 durationMinutes={Number(duration)}
                 selectedId={selectedHubId}
                 onSelect={(h) => setSelectedHubId(h.hubId)}

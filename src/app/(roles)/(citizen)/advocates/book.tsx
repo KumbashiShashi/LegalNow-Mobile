@@ -300,7 +300,7 @@ export default function BookAppointmentScreen() {
 
           {locationType === 'lone_hub' && (
             <HubPicker
-              when={`${date || '2026-11-15'}T${time || '11:00'}:00Z`}
+              when={new Date(`${date || '2026-11-15'}T${time || '11:00'}:00`).toISOString()}
               durationMinutes={Number(duration)}
               selectedId={selectedHub?.hubId}
               onSelect={setSelectedHub}

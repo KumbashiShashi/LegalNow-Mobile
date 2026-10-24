@@ -20,8 +20,6 @@ const fetchServices = async (): Promise<ServiceCatalogueItem[]> => {
   return Array.isArray(data) ? data : [];
 };
 
-// Known active service with verified provider in PostgreSQL
-const PRIMARY_LICENCE_SERVICE_ID = 'b1d4e8a0-6c3f-4a91-8d20-000000000003';
 
 const fetchProvidersForService = async (serviceId: string, city?: string, postalCode?: string) => {
   if (!serviceId) return [];
@@ -74,7 +72,7 @@ export default function ServiceProviderDirectoryScreen() {
       );
       if (match) return match.id;
     }
-    return PRIMARY_LICENCE_SERVICE_ID;
+    return services[0]?.id;
   }, [params.serviceId, activeFilter, services]);
 
   // 2. Fetch providers for the primary/selected service
@@ -580,7 +578,7 @@ export default function ServiceProviderDirectoryScreen() {
                           router.push({
                             pathname: '/(roles)/(citizen)/submit',
                             params: {
-                              serviceId: linkedServiceId,
+                              serviceId: provider.serviceId || linkedServiceId,
                               serviceName: provider.serviceName || 'Licence-related assistance',
                               category: provider.serviceCategory || 'Government Services',
                             },
@@ -605,7 +603,7 @@ export default function ServiceProviderDirectoryScreen() {
                               state: provider.state,
                               experienceYears: provider.experienceYears != null ? String(provider.experienceYears) : undefined,
                               servicesOffered: provider.servicesOffered,
-                              serviceId: linkedServiceId,
+                              serviceId: provider.serviceId || linkedServiceId,
                             },
                           });
                         }}

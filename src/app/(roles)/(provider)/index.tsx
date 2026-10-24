@@ -63,7 +63,7 @@ export default function ProviderDashboardScreen() {
   });
 
   const respondMutation = useMutation({
-    mutationFn: async ({ leadId, response }: { leadId: string, response: 'accepted' | 'rejected' }) => {
+    mutationFn: async ({ leadId, response }: { leadId: string, response: 'accepted' | 'declined' }) => {
       setRespondingId(leadId);
       const { data } = await apiClient.post(`/service-marketplace/leads/${leadId}/respond`, { response });
       return data;
@@ -207,7 +207,7 @@ export default function ProviderDashboardScreen() {
                     <Button
                       title="Reject"
                       variant="danger"
-                      onPress={() => respondMutation.mutate({ leadId: currentLeadId, response: 'rejected' })}
+                      onPress={() => respondMutation.mutate({ leadId: currentLeadId, response: 'declined' })}
                       isLoading={respondMutation.isPending && respondingId === currentLeadId}
                       style={{ flex: 1 }}
                     />
