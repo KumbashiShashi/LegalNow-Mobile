@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getItemAsync } from '../utils/storage';
 import { useAuthStore } from '../store/useAuthStore';
+import { useNetworkStore } from '../store/useNetworkStore';
 
 // Resolves API host dynamically:
 // - Physical Android / iOS devices can set EXPO_PUBLIC_API_URL in .env (e.g., http://192.168.1.X:5000)
@@ -53,10 +54,25 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Global 401 handling & session expiration
+// Response Interceptor: Global 401 handling, session expiration & network connectivity state
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (useNetworkStore.getState().isOffline) {
+      useNetworkStore.getState().setOffline(false);
+    }
+    return response;
+  },
   async (error) => {
+    // Detect network-level failures, timeouts, and offline status
+    if (
+      !error.response ||
+      error.code === 'ERR_NETWORK' ||
+      error.message === 'Network Error' ||
+      error.code === 'ECONNABORTED'
+    ) {
+      useNetworkStore.getState().setOffline(true, 'Server connection unreachable');
+    }
+
     if (error.response && error.response.status === 401) {
       // Securely clear session on 401 Unauthorized
       await useAuthStore.getState().logout();

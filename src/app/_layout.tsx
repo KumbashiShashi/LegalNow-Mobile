@@ -4,6 +4,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
+import { OfflineBanner } from '../components/shared/OfflineBanner';
 
 // Initialize React Query client
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <View style={{ flex: 1 }}>
         <StatusBar style="dark" />
+        <OfflineBanner />
         <Slot />
       </View>
     </QueryClientProvider>
