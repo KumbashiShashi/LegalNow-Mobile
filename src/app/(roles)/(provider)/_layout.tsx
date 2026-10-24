@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { NotificationBell } from '../../../components/shared/NotificationBell';
 
 export default function ProviderTabLayout() {
   return (
@@ -10,6 +11,7 @@ export default function ProviderTabLayout() {
         headerShown: true,
         headerStyle: { backgroundColor: '#F8F9FA' },
         headerTitleStyle: { fontWeight: 'bold', color: '#1A1A1A' },
+        headerRight: () => <NotificationBell />,
       }}
     >
       <Tabs.Screen

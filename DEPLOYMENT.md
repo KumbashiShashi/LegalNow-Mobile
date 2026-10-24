@@ -137,3 +137,4 @@ npm test
 # 4. Expo Doctor (Diagnose dependency compatibility)
 npx expo-doctor
 ```
+

@@ -91,3 +91,4 @@ describe('legalnow:// URI Scheme Parser', () => {
     expect(queryParams.city).toBe('Bengaluru');
   });
 });
+

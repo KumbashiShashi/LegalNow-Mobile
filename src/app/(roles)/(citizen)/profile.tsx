@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TextInput, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TextInput, ActivityIndicator, TouchableOpacity, Alert, Switch } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../../api/axiosClient';
 import { useAuthStore } from '../../../store/useAuthStore';
+import { useSecurityStore } from '../../../store/useSecurityStore';
 import { theme } from '../../../styles/theme';
 import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
@@ -14,6 +15,7 @@ import { PhotoPicker } from '../../../components/shared/PhotoPicker';
 
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuthStore();
+  const { isBiometricEnabled, setBiometricEnabled } = useSecurityStore();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -254,6 +256,26 @@ export default function ProfileScreen() {
 
       {/* Account Actions */}
       <Card style={styles.sectionCard}>
+        <View style={styles.biometricRow}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={styles.biometricTitle}>Biometric App Lock</Text>
+            <Text style={styles.biometricSubtitle}>Require Fingerprint or Face ID to open LegalNow</Text>
+          </View>
+          <Switch
+            value={isBiometricEnabled}
+            onValueChange={async (val) => {
+              await setBiometricEnabled(val);
+              Alert.alert(
+                val ? 'Biometric Lock Enabled' : 'Biometric Lock Disabled',
+                val
+                  ? 'Your confidential legal matters and private messages are now locked with biometrics.'
+                  : 'Biometric verification has been turned off.'
+              );
+            }}
+            trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+          />
+        </View>
+
         <Button
           title="Change Password"
           variant="secondary"
@@ -370,5 +392,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.text,
     marginBottom: 8,
+  },
+  biometricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    marginBottom: 16,
+  },
+  biometricTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.secondary,
+  },
+  biometricSubtitle: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    marginTop: 2,
   },
 });

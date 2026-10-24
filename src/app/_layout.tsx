@@ -4,10 +4,28 @@ import { View, ActivityIndicator } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useSecurityStore } from '../store/useSecurityStore';
 import { OfflineBanner } from '../components/shared/OfflineBanner';
+import { BiometricLockOverlay } from '../components/shared/BiometricLockOverlay';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
-// Initialize React Query client
-const queryClient = new QueryClient();
+// Initialize React Query client with offline resilience and optimistic caching
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes fresh
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours garbage collection retention
+      retry: (failureCount, error: any) => {
+        if (error?.response?.status && [401, 403, 404].includes(error.response.status)) {
+          return false;
+        }
+        return failureCount < 2;
+      },
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+  },
+});
 
 export default function RootLayout() {
   const { isAuthenticated, isLoading, role, checkSession } = useAuthStore();
@@ -15,8 +33,13 @@ export default function RootLayout() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
+  usePushNotifications();
+
   useEffect(() => {
-    checkSession().then(() => setMounted(true));
+    Promise.all([
+      checkSession(),
+      useSecurityStore.getState().initializeSecurity(),
+    ]).then(() => setMounted(true));
   }, [checkSession]);
 
   useEffect(() => {
@@ -67,6 +90,7 @@ export default function RootLayout() {
       <View style={{ flex: 1 }}>
         <StatusBar style="dark" />
         <OfflineBanner />
+        <BiometricLockOverlay />
         <Slot />
       </View>
     </QueryClientProvider>
