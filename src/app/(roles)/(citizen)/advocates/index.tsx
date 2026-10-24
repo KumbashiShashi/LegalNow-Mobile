@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, Text, View, FlatList, TextInput, ActivityIndicator, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,10 +15,8 @@ const fetchCategories = async () => {
   return Array.isArray(data) ? data : [];
 };
 
-const fetchProfessionals = async (category: string, search: string, location: string) => {
+const fetchProfessionals = async (location: string) => {
   const params: any = {};
-  if (category) params.category = category;
-  if (search.trim()) params.search = search.trim();
   if (location.trim()) params.location = location.trim();
 
   const { data } = await apiClient.get('/marketplace/professionals', { params });
@@ -36,10 +34,85 @@ export default function AdvocateDirectoryScreen() {
     queryFn: fetchCategories,
   });
 
-  const { data: advocates = [], isLoading, error } = useQuery({
-    queryKey: ['advocates', selectedCategory, search, city],
-    queryFn: () => fetchProfessionals(selectedCategory, search, city),
+  const { data: allAdvocates = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['advocates', city],
+    queryFn: () => fetchProfessionals(city),
   });
+
+  // Client-side smart filtering for instant responsiveness and accurate practice-area matching
+  const filteredAdvocates = useMemo(() => {
+    let list = allAdvocates;
+
+    // 1. Specialty / Practice Area Filter
+    if (selectedCategory && selectedCategory.trim()) {
+      const cat = selectedCategory.trim().toLowerCase();
+      const filterDef = ADVOCATE_FILTERS.find((f) => f.name.toLowerCase() === cat);
+
+      list = list.filter((advocate: any) => {
+        const cats = (advocate.categories || []).map((c: string) => c.toLowerCase());
+        const subs = (advocate.subCategories || []).map((s: string) => s.toLowerCase());
+        const bio = (advocate.bio || '').toLowerCase();
+        const name = (advocate.name || '').toLowerCase();
+
+        // Direct exact match
+        if (cats.includes(cat) || subs.includes(cat)) {
+          return true;
+        }
+
+        // Specific category branches
+        if (cat === 'criminal') {
+          return cats.includes('criminal') || subs.includes('criminal') || bio.includes('criminal') || bio.includes('bail');
+        }
+
+        if (cat === 'notary') {
+          return cats.includes('notary') || subs.includes('notary') || bio.includes('notary');
+        }
+
+        // Filter keywords check
+        if (filterDef && filterDef.keywords) {
+          const hasKeyword = filterDef.keywords.some((kw) => {
+            const k = kw.toLowerCase();
+            return bio.includes(k) || cats.includes(k) || subs.includes(k) || name.includes(k);
+          });
+          if (hasKeyword) return true;
+        }
+
+        // General legal practitioner match:
+        // Registered Bar advocates with general 'advocate' or 'legal' categories practice Civil, Family, Property, Business, Financial matters
+        const isCriminalOnly = cats.length > 0 && cats.every((c: string) => c === 'criminal');
+        const isNotaryOnly = cats.length > 0 && cats.every((c: string) => c === 'notary');
+        const hasGeneralPractice = cats.some((c: string) => ['advocate', 'legal'].includes(c));
+
+        if (hasGeneralPractice && !isCriminalOnly && !isNotaryOnly) {
+          return true;
+        }
+
+        return false;
+      });
+    }
+
+    // 2. Global Text Search
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((advocate: any) => {
+        const name = (advocate.name || '').toLowerCase();
+        const bio = (advocate.bio || '').toLowerCase();
+        const loc = (advocate.location || '').toLowerCase();
+        const cats = (advocate.categories || []).join(' ').toLowerCase();
+        const subs = (advocate.subCategories || []).join(' ').toLowerCase();
+
+        return (
+          name.includes(q) ||
+          bio.includes(q) ||
+          loc.includes(q) ||
+          cats.includes(q) ||
+          subs.includes(q)
+        );
+      });
+    }
+
+    return list;
+  }, [allAdvocates, selectedCategory, search]);
 
   const handleIconCategoryPress = (filter: AdvocateCategoryFilter) => {
     if (selectedCategory.toLowerCase() === filter.name.toLowerCase()) {
@@ -57,6 +130,12 @@ export default function AdvocateDirectoryScreen() {
     }
   };
 
+  const handleClearFilters = () => {
+    setSelectedCategory('');
+    setSearch('');
+    setCity('');
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Find Verified Advocates', headerShown: true }} />
@@ -68,7 +147,7 @@ export default function AdvocateDirectoryScreen() {
             <Ionicons name="search" size={18} color={theme.colors.muted} style={{ marginRight: 6 }} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search advocate, problem, or law..."
+              placeholder="Search advocate name, problem, or law..."
               placeholderTextColor={theme.colors.muted}
               value={search}
               onChangeText={setSearch}
@@ -97,9 +176,26 @@ export default function AdvocateDirectoryScreen() {
           </View>
         </View>
 
-        {/* UI Visual Image / Icon Filters: Family, Business, Property, Criminal, Financial, Consumer */}
+        {/* UI Visual Image / Icon Filters: All, Family, Business, Property, Criminal, Financial, Consumer */}
         <Text style={styles.filterSubheader}>Browse by Practice Area</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.iconFiltersRow} contentContainerStyle={{ paddingRight: 16 }}>
+          {/* All Advocates Option */}
+          <TouchableOpacity
+            style={[
+              styles.iconCard,
+              !selectedCategory && styles.iconCardActive,
+            ]}
+            onPress={() => setSelectedCategory('')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: !selectedCategory ? '#D2E3FC' : '#F1F3F4' }]}>
+              <Ionicons name="people" size={22} color={!selectedCategory ? theme.colors.primary : '#5F6368'} />
+            </View>
+            <Text style={[styles.iconCardTitle, !selectedCategory && styles.iconCardTitleActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
+
           {ADVOCATE_FILTERS.map((f) => {
             const isSelected = selectedCategory.toLowerCase() === f.name.toLowerCase();
             return (
@@ -178,16 +274,12 @@ export default function AdvocateDirectoryScreen() {
       {/* Results Header */}
       <View style={styles.countRow}>
         <Text style={styles.countText}>
-          {isLoading ? 'Searching verified advocates...' : `${advocates.length} advocate${advocates.length === 1 ? '' : 's'} available`}
+          {isLoading
+            ? 'Searching verified advocates...'
+            : `Showing ${filteredAdvocates.length} of ${allAdvocates.length} verified advocate${allAdvocates.length === 1 ? '' : 's'}`}
         </Text>
-        {(selectedCategory || search || city) ? (
-          <TouchableOpacity
-            onPress={() => {
-              setSelectedCategory('');
-              setSearch('');
-              setCity('');
-            }}
-          >
+        {selectedCategory || search || city ? (
+          <TouchableOpacity onPress={handleClearFilters}>
             <Text style={styles.clearLink}>Clear filters</Text>
           </TouchableOpacity>
         ) : null}
@@ -199,16 +291,22 @@ export default function AdvocateDirectoryScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={32} color={theme.colors.danger} />
           <Text style={styles.errorText}>Could not load advocates. Please check network connection.</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
         </View>
-      ) : advocates.length === 0 ? (
+      ) : filteredAdvocates.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="search-outline" size={48} color={theme.colors.muted} />
-          <Text style={styles.emptyTitle}>No advocates match your filters</Text>
+          <Text style={styles.emptyTitle}>No advocates match your search</Text>
           <Text style={styles.emptySubtitle}>Try choosing a different practice area, problem keyword, or city.</Text>
+          <TouchableOpacity style={styles.resetBtn} onPress={handleClearFilters}>
+            <Text style={styles.resetBtnText}>View All Verified Advocates</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
-          data={advocates}
+          data={filteredAdvocates}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
@@ -348,6 +446,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     marginRight: 8,
   },
+  iconCardActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: '#E8F0FE',
+  },
   iconCircle: {
     width: 40,
     height: 40,
@@ -361,6 +463,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.text,
     textAlign: 'center',
+  },
+  iconCardTitleActive: {
+    color: theme.colors.primary,
+    fontWeight: '700',
   },
   problemScroll: { flexDirection: 'row', marginBottom: 10 },
   problemPill: {
@@ -430,7 +536,11 @@ const styles = StyleSheet.create({
   bookCtaText: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' },
   errorContainer: { padding: 32, alignItems: 'center' },
   errorText: { marginTop: 8, color: theme.colors.danger, textAlign: 'center', fontSize: 14 },
+  retryBtn: { marginTop: 12, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.colors.primary, borderRadius: 6 },
+  retryBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 12 },
   emptyContainer: { padding: 40, alignItems: 'center' },
   emptyTitle: { fontSize: 16, fontWeight: 'bold', color: theme.colors.secondary, marginTop: 12 },
-  emptySubtitle: { fontSize: 13, color: theme.colors.muted, textAlign: 'center', marginTop: 4 },
+  emptySubtitle: { fontSize: 13, color: theme.colors.muted, textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  resetBtn: { backgroundColor: theme.colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
+  resetBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 13 },
 });
